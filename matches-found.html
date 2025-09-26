@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Verify On Chain</title>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.4/dist/sweetalert2.min.css">
+   <script src="https://cdn.jsdelivr.net/npm/web3@4.13.0/dist/web3.min.js"></script>
+   <link href="./style.css" rel="stylesheet">
+   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+   </head>
+   <body>
+      <div class="header-top"></div>
+      <div class="breadcrumb-sec">
+         <div class="container">
+            <div class="d-flex justify-content-between">
+               <!-- Breadcrumb start -->
+               <nav style="--bs-breadcrumb-divider: url(&#34;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M2.5 0L1 1.5 3.5 4 1 6.5 2.5 8l4-4-4-4z' fill='%236c757d'/%3E%3C/svg%3E&#34;);" aria-label="breadcrumb">
+                  <ol class="breadcrumb">
+                     <!-- <li class="breadcrumb-item"><a href="./index.html">Home</a></li> -->
+                     <!-- <li class="breadcrumb-item" aria-current="page"><a href="./old-data.html">Old Data</a></li> -->
+                     <li class="breadcrumb-item active" aria-current="page"><a href="./get-seed-data.html">Get Seed Data</a></li>
+                     <li class="breadcrumb-item active" aria-current="page">Matches Found</li>
+                  </ol>
+               </nav>
+               <!-- Breadcrumb end -->
+               <span class="btn logout-btn btn-danger" onclick="userLogOut()"><i class="bi bi-power"></i> Logout</a>
+            </div>
+         </div>
+      </div>
+      <div class="old-data-sec matches-found-sec">
+         <div class="container">
+            <div class="row form-field">
+               <div class="col-sm-3 col-xs-12">
+                  <div class="label-name">
+                     <label>Block Hash Generated</label>
+                  </div>
+               </div>
+               <div class="col-sm-9 col-xs-12">
+                  <div class="form-floating mb-3">
+                     <h2 class="hash" id="block-hash-generated"></h2>
+                  </div>
+               </div>
+            </div>
+           
+            <div class="row form-field">
+               <div class="col-sm-3 col-xs-12">
+                  <div class="label-name">
+                     <label>Actual Hash</label>
+                  </div>
+               </div>
+               <div class="col-sm-9 col-xs-12">
+                  <div class="form-floating mb-3">
+                     <h2 class="hash" id="actual-hash"></h2>
+                  </div>
+               </div>
+            </div>
+            <div class="row form-field">
+               <div class="col-sm-3 col-xs-12">
+                  <div class="label-name">
+                     <label>Secret Key</label>
+                  </div>
+               </div>
+               <div class="col-sm-9 col-xs-12">
+                  <div class="form-floating mb-3">
+                     <h2 class="hash" id="secret-key"></h2>
+                  </div>
+               </div>
+            </div>
+            <div class="row form-field">
+               <div class="col-sm-3 col-xs-12">
+                  <div class="label-name">
+                     <label>Dummy Hash</label>
+                  </div>
+               </div>
+               <div class="col-sm-9 col-xs-12">
+                  <div class="form-floating mb-3">
+                     <h2 class="hash" id="dummy-hash"></h2>
+                  </div>
+               </div>
+            </div>
+           
+            <h3 class="mt-25">No of Matches <span id="matchCount"></span></h3>
+            <h3 class="mt-25 no-matches-found tex-center d-none" id="matchHeading" >No Matches Found</h3>
+            <div class="matches" id="matches"></div>
+            <div class="mt-50 text-right">
+               <button type="=submit" class="w-150 btn btn-primary" id="SubmitVerify" >Verify on Chain</button>
+               <button type="button" class="w-150 btn btn-outline-primary ml-20">Cancel</button>
+            </div>
+         </div>
+      </div>
+      </div>
+      <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.4/dist/sweetalert2.all.min.js"></script>
+      <script src="sweetalert.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+      <script type="module" src="./walletconnect.js"></script>
+      <script type="module" src="./connection.js" ></script>
+
+
+    
+   </body>
+</html>
