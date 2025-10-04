@@ -28,15 +28,12 @@ const convertBigIntToString = (obj: any): any => {
   if (obj === null || obj === undefined) {
     return obj;
   }
-
   if (typeof obj === "bigint") {
     return obj.toString();
   }
-
   if (Array.isArray(obj)) {
     return obj.map(convertBigIntToString);
   }
-
   if (typeof obj === "object") {
     const converted: any = {};
     for (const key in obj) {
@@ -46,7 +43,6 @@ const convertBigIntToString = (obj: any): any => {
     }
     return converted;
   }
-
   return obj;
 };
 
@@ -94,7 +90,7 @@ const GuessPage: React.FC = () => {
   const [secretHashInput, setSecretHashInput] = useState("");
   const [dummyHash, setDummyHash] = useState(ZERO_HASH);
   const [tokenSize, setTokenSize] = useState(4);
-  const [tokens, setTokens] = useState([]);
+  const [tokens, setTokens] = useState<string[]>([]); // FIXED: Added proper typing
 
   // Loading states
   const [isGeneratingActual, setIsGeneratingActual] = useState(false);
@@ -134,7 +130,7 @@ const GuessPage: React.FC = () => {
           const cleanedHash = await removePrefix(actualHash);
           if (cleanedHash.length >= tokenSize) {
             const generatedTokens = await tokenize(cleanedHash, tokenSize);
-            setTokens(generatedTokens);
+            setTokens(generatedTokens); // FIXED: Now works with proper typing
           } else {
             setTokens([]);
           }
@@ -146,7 +142,6 @@ const GuessPage: React.FC = () => {
         setTokens([]);
       }
     };
-
     generateTokens();
   }, [actualHash, tokenSize]);
 
@@ -162,7 +157,6 @@ const GuessPage: React.FC = () => {
         try {
           const isActualValid = await validateHashFormat(actualHash);
           const isSecretValid = await validateHashFormat(secretHash);
-
           if (isActualValid && isSecretValid) {
             const combined = await getUnrevealedHash(actualHash, secretHash);
             setDummyHash(combined);
@@ -177,7 +171,6 @@ const GuessPage: React.FC = () => {
         setDummyHash(ZERO_HASH);
       }
     };
-
     generateDummyHash();
   }, [actualHash, secretHash]);
 
@@ -260,7 +253,6 @@ const GuessPage: React.FC = () => {
       if (!hashInput) {
         hashInput = Date.now().toString() + Math.random().toString();
       }
-
       const generatedHash = await genHashData(hashInput);
       setActualHash(generatedHash);
       setActualHashInput(generatedHash);
@@ -278,7 +270,6 @@ const GuessPage: React.FC = () => {
       if (!hashInput) {
         hashInput = Date.now().toString() + Math.random().toString() + "secret";
       }
-
       const generatedHash = await genHashData(hashInput);
       setSecretHash(generatedHash);
       setSecretHashInput(generatedHash);
@@ -311,7 +302,7 @@ const GuessPage: React.FC = () => {
       const isActualValid = await validateHashFormat(actualHash);
       if (!isActualValid) {
         errors.push(
-          "Actual hash must be a valid 64-character hexadecimal string.",
+          "Actual hash must be a valid 64-character hexadecimal string."
         );
       }
     }
@@ -320,7 +311,7 @@ const GuessPage: React.FC = () => {
       const isSecretValid = await validateHashFormat(secretHash);
       if (!isSecretValid) {
         errors.push(
-          "Secret key Hash must be a valid 64-character hexadecimal string.",
+          "Secret key Hash must be a valid 64-character hexadecimal string."
         );
       }
     }
@@ -329,14 +320,14 @@ const GuessPage: React.FC = () => {
       const isDummyValid = await validateHashFormat(dummyHash);
       if (!isDummyValid) {
         errors.push(
-          "Dummy hash must be a valid 64-character hexadecimal string.",
+          "Dummy hash must be a valid 64-character hexadecimal string."
         );
       }
     }
 
     if (!overwrite) {
       errors.push(
-        "Cannot submit the form with overwrite is false. Please enable overwrite to submit.",
+        "Cannot submit the form with overwrite is false. Please enable overwrite to submit."
       );
     }
 
@@ -380,7 +371,7 @@ const GuessPage: React.FC = () => {
 
       if (Number(chainId) !== expectedChainId) {
         throw new Error(
-          "Wrong network! Please switch to Polygon Amoy Testnet.",
+          "Wrong network! Please switch to Polygon Amoy Testnet."
         );
       }
 
@@ -394,17 +385,16 @@ const GuessPage: React.FC = () => {
         const logicAddress = localStorage.getItem("logicCrtAddress");
         if (!logicAddress || logicAddress === "0x0" || logicAddress === "0x") {
           throw new Error(
-            "Logic contract not found. Please complete registration first.",
+            "Logic contract not found. Please complete registration first."
           );
         }
-
         contractAddress = logicAddress;
         contractABI = LOGIC_CONTRACT_ABI;
       }
 
       const contractInstance = new web3.eth.Contract(
         contractABI,
-        contractAddress,
+        contractAddress
       );
 
       return contractInstance;
@@ -433,17 +423,16 @@ const GuessPage: React.FC = () => {
 
       const registeredWallet =
         connectedAccount || localStorage.getItem("currentAccount");
-
       if (!registeredWallet || registeredWallet === "0x0") {
         throw new Error(
-          "No registered wallet found. Please connect your wallet first.",
+          "No registered wallet found. Please connect your wallet first."
         );
       }
 
       const logicAddress = localStorage.getItem("logicCrtAddress");
       if (!logicAddress || logicAddress === "0x0" || logicAddress === "0x") {
         throw new Error(
-          "Logic contract not found. Please complete registration first.",
+          "Logic contract not found. Please complete registration first."
         );
       }
 
@@ -454,6 +443,7 @@ const GuessPage: React.FC = () => {
       console.log("Contract initialized successfully");
 
       const paymentAmount = paidGuess ? "25000000000000000000" : "0";
+
       const actualHashWith0x = actualHash.startsWith("0x")
         ? actualHash
         : "0x" + actualHash;
@@ -481,20 +471,20 @@ const GuessPage: React.FC = () => {
           const balance = await tokenContract.methods
             .balanceOf(registeredWallet)
             .call();
-          const balanceInEther = parseFloat(balance.toString()) / 1e18;
-
+          
+          // FIXED: Proper type handling for balance
+          const balanceInEther = parseFloat(String(balance)) / 1e18;
           console.log("Token balance:", balanceInEther);
 
           if (balanceInEther < 25) {
             throw new Error(
-              `Insufficient token balance. You need 25 tokens but have ${balanceInEther.toFixed(2)} tokens.`,
+              `Insufficient token balance. You need 25 tokens but have ${balanceInEther.toFixed(2)} tokens.`
             );
           }
         } catch (error: any) {
           if (error.message.includes("Insufficient token balance")) {
             throw error;
           }
-
           console.warn("Could not check token balance:", error);
         }
       }
@@ -510,7 +500,7 @@ const GuessPage: React.FC = () => {
           tokenSize,
           paymentAmount,
           overwrite,
-          complex,
+          complex
         )
         .send({
           from: registeredWallet,
@@ -557,13 +547,13 @@ const GuessPage: React.FC = () => {
             // Store in localStorage (safe JSON serialization)
             localStorage.setItem(
               "lastGuessSubmission",
-              JSON.stringify(exportableData),
+              JSON.stringify(exportableData)
             );
 
             // Store in Firebase (safe JSON serialization)
             const guessRef = ref(
               database,
-              `guesses/${registeredWallet}/${guessId}`,
+              `guesses/${registeredWallet}/${guessId}`
             );
             set(guessRef, exportableData).catch((err) => {
               console.error("Firebase storage error:", err);
@@ -674,40 +664,40 @@ const GuessPage: React.FC = () => {
         title={confirmModal.title}
         message={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={() =>
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }))
+        }
         type={confirmModal.type}
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
       />
-
       <GuessUI
         guessId={guessId}
         paidGuess={paidGuess}
+        onPaidGuessChange={handlePaidGuessChange}
         overwrite={overwrite}
+        onOverwriteChange={handleOverwriteChange}
         complex={complex}
+        onComplexChange={handleComplexChange}
         blockIncrement={blockIncrement}
+        onBlockIncrementChange={handleBlockIncrementChange}
         actualHash={actualHashInput}
+        onActualHashChange={handleActualHashChange}
+        onGenerateActualHash={handleGenerateActualHash}
+        isGeneratingActual={isGeneratingActual}
         secretHash={secretHashInput}
+        onSecretHashChange={handleSecretHashChange}
+        onGenerateSecretHash={handleGenerateSecretHash}
+        isGeneratingSecret={isGeneratingSecret}
         dummyHash={dummyHash}
         tokenSize={tokenSize}
-        tokens={tokens}
-        isGeneratingActual={isGeneratingActual}
-        isGeneratingSecret={isGeneratingSecret}
-        isSubmitting={isSubmitting}
-        isFormReadonly={isFormReadonly}
-        onPaidGuessChange={handlePaidGuessChange}
-        onOverwriteChange={handleOverwriteChange}
-        onComplexChange={handleComplexChange}
-        onBlockIncrementChange={handleBlockIncrementChange}
-        onActualHashChange={handleActualHashChange}
-        onSecretHashChange={handleSecretHashChange}
         onTokenSizeChange={handleTokenSizeChange}
-        onGenerateActualHash={handleGenerateActualHash}
-        onGenerateSecretHash={handleGenerateSecretHash}
+        tokens={tokens}
         onSubmit={handleSubmit}
         onClear={handleClear}
-        // NEW PROP: Passing the back function to the UI component
         onBack={handleBack}
+        isSubmitting={isSubmitting}
+        isFormReadonly={isFormReadonly}
       />
     </>
   );

@@ -1,17 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
 import type { GuessData } from "../../types/types";
-
-interface CircularGuessRingProps {
-  guesses: GuessData[];
-  selectedGuess: GuessData | null;
-  onSelectGuess: (guess: GuessData) => void;
-  onNewGuess?: (guessId: number) => void;
-  onVerify?: (guessId: number) => void;
-  onCheckValidity?: (guessId: number) => void;
-}
 
 interface HashDetails {
   actualHash: string;
@@ -23,187 +12,64 @@ interface HashDetails {
   complex: boolean;
 }
 
-const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
+interface ActionButton {
+  label: string;
+  color: string;
+  bgColor: string;
+  icon: string;
+  action: ((id: number) => void) | undefined;
+  description: string;
+}
+
+interface CircularGuessRingUIProps {
+  guesses: GuessData[];
+  selectedGuess: GuessData | null;
+  activeGuessId: number | null;
+  clockwiseAngle: number;
+  isExpanded: boolean;
+  hashDetails: HashDetails | null;
+  loading: boolean;
+  isMobile: boolean;
+  orbitRadius: number;
+  numberSize: number;
+  bigCirclePosition: { x: number; y: number };
+  actionButtons: ActionButton[];
+  isSelectedGuessPlaced: boolean; // NEW PROP
+  onNumberClick: (guess: GuessData) => void;
+  onActionClick: (action: ((id: number) => void) | undefined, guessId: number) => void;
+  onCenterClick: () => void;
+  onCloseActions: () => void;
+  onBackFromDetails: () => void;
+}
+
+const pentagonPositions = [
+  { angle: -90, size: 60 },
+  { angle: -18, size: 60 },
+  { angle: 54, size: 60 },
+  { angle: 126, size: 60 },
+  { angle: 198, size: 60 },
+];
+
+const CircularGuessRingUI: React.FC<CircularGuessRingUIProps> = ({
   guesses,
   selectedGuess,
-  onSelectGuess,
-  onNewGuess,
-  onVerify,
-  onCheckValidity,
+  activeGuessId,
+  clockwiseAngle,
+  isExpanded,
+  hashDetails,
+  loading,
+  isMobile,
+  orbitRadius,
+  numberSize,
+  bigCirclePosition,
+  actionButtons,
+  isSelectedGuessPlaced, // NEW PROP
+  onNumberClick,
+  onActionClick,
+  onCenterClick,
+  onCloseActions,
+  onBackFromDetails,
 }) => {
-  useAuth();
-  const navigate = useNavigate();
-  const [activeGuessId, setActiveGuessId] = useState<number | null>(null);
-  const [clockwiseAngle, setClockwiseAngle] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [hashDetails, setHashDetails] = useState<HashDetails | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isRotationPaused, setIsRotationPaused] = useState(false);
-
-  // Check if mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Clockwise rotation for numbers (only when not paused)
-  useEffect(() => {
-    if (isRotationPaused) return;
-    const interval = setInterval(() => {
-      setClockwiseAngle((prev) => (prev + 0.6) % 360);
-    }, 50);
-    return () => clearInterval(interval);
-  }, [isRotationPaused]);
-
-  // Responsive orbit configuration
-  const getOrbitRadius = () => {
-    if (isMobile) {
-      return Math.min(window.innerWidth, window.innerHeight) * 0.22;
-    }
-    return 200;
-  };
-
-  const getNumberSize = () => {
-    return isMobile ? 50 : 60;
-  };
-
-  const orbitRadius = getOrbitRadius();
-  const numberSize = getNumberSize();
-
-  const pentagonPositions = [
-    { angle: -90, size: numberSize }, // Top
-    { angle: -18, size: numberSize }, // Top-right
-    { angle: 54, size: numberSize }, // Bottom-right
-    { angle: 126, size: numberSize }, // Bottom-left
-    { angle: 198, size: numberSize }, // Top-left
-  ];
-
-  const handleNewGuessClick = (guessId: number) => {
-    navigate(`/guess/${guessId}`);
-    if (onNewGuess) {
-      onNewGuess(guessId);
-    }
-  };
-
-  const actionButtons = [
-    {
-      label: "New Guess",
-      color: "#3b82f6",
-      bgColor: "from-blue-500 to-blue-600",
-      icon: "➕",
-      action: handleNewGuessClick,
-      description: "Create new guess",
-    },
-    {
-      label: "Verify",
-      color: "#10b981",
-      bgColor: "from-green-500 to-green-600",
-      icon: "✓",
-      action: onVerify,
-      description: "Verify guess",
-    },
-    {
-      label: "Check Validity",
-      color: "#f59e0b",
-      bgColor: "from-yellow-500 to-yellow-600",
-      icon: "🔍",
-      action: onCheckValidity,
-      description: "Check validity",
-    },
-  ];
-
-  const sampleHashDetails: HashDetails = {
-    actualHash:
-      "0xc5d24601867233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
-    secretKey:
-      "0x10ca3eff73ebec87d2394fc58560afeab86dac7a21f5e402ea0a55e5c8a6758f",
-    dummyHash:
-      "0xe2475c80a56daf75c6d704deadb730719601c8b664144c0e4aea8574a8cf59f2",
-    targetBlockNumber: 26912749,
-    tokenSizes: 3,
-    paidGuess: false,
-    complex: true,
-  };
-
-  const handleNumberClick = (guess: GuessData) => {
-    if (!isExpanded) {
-      onSelectGuess(guess);
-      setActiveGuessId((curr) => (curr === guess.id ? null : guess.id));
-      setIsRotationPaused(true);
-    }
-  };
-
-  const handleActionClick = (
-    action: ((id: number) => void) | undefined,
-    guessId: number,
-  ) => {
-    action?.(guessId);
-    setActiveGuessId(null);
-    setIsRotationPaused(false);
-  };
-
-  const handleCenterClick = async () => {
-    if (!isExpanded) {
-      setLoading(true);
-      setTimeout(() => {
-        setHashDetails(sampleHashDetails);
-        setLoading(false);
-        setIsExpanded(true);
-        setActiveGuessId(null);
-        setIsRotationPaused(false);
-      }, 500);
-    } else {
-      setIsExpanded(false);
-      setHashDetails(null);
-    }
-  };
-
-  const handleCloseActions = () => {
-    setActiveGuessId(null);
-    setIsRotationPaused(false);
-  };
-
-  const handleBackFromDetails = () => {
-    setIsExpanded(false);
-    setHashDetails(null);
-    setIsRotationPaused(false);
-  };
-
-  const handleHashDetailsAction = () => {
-    console.log("Hash Details Action clicked for guess:", selectedGuess?.id);
-    alert(`Processing hash details for Guess #${selectedGuess?.id}`);
-  };
-
-  const getBigCirclePosition = () => {
-    const navbarHeight = 64;
-    const centerY = window.innerHeight / 2;
-
-    if (isExpanded) {
-      if (isMobile) {
-        return {
-          x: window.innerWidth / 2,
-          y: centerY,
-        };
-      } else {
-        return {
-          x: window.innerWidth * 0.15,
-          y: centerY,
-        };
-      }
-    }
-    return {
-      x: window.innerWidth / 2,
-      y: centerY,
-    };
-  };
-
-  const bigCirclePosition = getBigCirclePosition();
-
   return (
     <>
       <style>{`
@@ -226,6 +92,19 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
         .number-ball:hover {
           box-shadow: 0 6px 20px rgba(29, 78, 216, 0.6);
           transform: scale(1.05);
+        }
+
+        .number-ball.empty {
+          background: transparent;
+          border: 2px dashed rgba(255, 255, 255, 0.3);
+          box-shadow: none;
+          cursor: default;
+        }
+        
+        .number-ball.empty:hover {
+          transform: scale(1);
+          box-shadow: none;
+          border-color: rgba(255, 255, 255, 0.5);
         }
 
         .number-ball.active {
@@ -299,7 +178,9 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
                     whileTap={{ scale: 0.98 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleActionClick(button.action, activeGuessId);
+                      if (activeGuessId) {
+                        onActionClick(button.action, activeGuessId);
+                      }
                     }}
                     className={`flex items-center justify-center p-3 rounded-lg bg-gradient-to-r ${button.bgColor} hover:shadow-lg transition-all duration-200 text-sm font-medium text-white ${
                       isMobile ? "min-h-[44px]" : "min-h-[48px]"
@@ -316,12 +197,7 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
 
         <div className="fixed inset-0 overflow-hidden">
           {[1, 2, 3, 4, 5].map((numberId, index) => {
-            const guess = guesses.find((g) => g.id === numberId) || {
-              id: numberId,
-              status: "pending" as const,
-              hash: "",
-              timestamp: Date.now(),
-            };
+            const guess = guesses.find((g) => g.id === numberId);
 
             const position = pentagonPositions[index];
             const currentAngle = position.angle + clockwiseAngle;
@@ -335,37 +211,30 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
             return (
               <motion.div
                 key={numberId}
-                onClick={() => handleNumberClick(guess)}
-                className={`fixed number-ball cursor-pointer ${isActive ? "active" : ""}`}
+                onClick={() => guess && onNumberClick(guess)}
+                className={`fixed number-ball ${isActive ? "active" : ""} ${!guess ? "empty" : ""}`}
                 style={{
-                  left: x - position.size / 2,
-                  top: y - position.size / 2,
-                  width: position.size,
-                  height: position.size,
+                  left: x - numberSize / 2,
+                  top: y - numberSize / 2,
+                  width: numberSize,
+                  height: numberSize,
                   transform: `rotate(${-clockwiseAngle}deg)`,
                   zIndex: isSelected ? 25 : isActive ? 30 : 20,
-                  pointerEvents: "auto",
-                  display: "block !important",
-                  opacity: "1 !important",
-                  visibility: "visible !important",
+                  pointerEvents: guess ? "auto" : "none",
+                  display: "block",
                 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={guess ? { scale: 1.1 } : {}}
+                whileTap={guess ? { scale: 0.95 } : {}}
               >
                 <div className="w-full h-full flex items-center justify-center relative">
-                  {numberId}
-                  {guess.status === "verified" && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                  )}
+                  {guess && numberId}
                 </div>
               </motion.div>
             );
           })}
 
           <motion.div
-            onClick={handleCenterClick}
+            onClick={onCenterClick}
             className="fixed bg-gradient-to-br from-purple-700 to-indigo-800 rounded-full cursor-pointer flex flex-col items-center justify-center text-white font-bold shadow-2xl border-4 border-white/20 hover:border-white/40 transition-all duration-300"
             style={{
               left: bigCirclePosition.x - 80,
@@ -389,8 +258,9 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
             <div className="text-xs text-center px-2">
               {loading ? "Loading..." : isExpanded ? "CLOSE" : "VIEW DETAILS"}
             </div>
-            {selectedGuess?.status === "verified" && (
-              <div className="text-xs text-green-300 mt-1">✓ VERIFIED</div>
+            {/* UPDATED: Only show "UNVERIFIED" if the selected guess has data in storage */}
+            {selectedGuess && isSelectedGuessPlaced && (
+              <div className="text-xs text-yellow-400 mt-1">UNVERIFIED</div>
             )}
           </motion.div>
         </div>
@@ -412,7 +282,7 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
           >
             <div className="flex items-center justify-between mb-6">
               <motion.button
-                onClick={handleBackFromDetails}
+                onClick={onBackFromDetails}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors text-sm border border-gray-500/50"
@@ -426,7 +296,7 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
               </h2>
 
               <motion.button
-                onClick={handleBackFromDetails}
+                onClick={onBackFromDetails}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
@@ -534,7 +404,7 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleCloseActions}
+            onClick={onCloseActions}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
           />
         )}
@@ -543,4 +413,4 @@ const CircularGuessRing: React.FC<CircularGuessRingProps> = ({
   );
 };
 
-export default CircularGuessRing;
+export default CircularGuessRingUI;

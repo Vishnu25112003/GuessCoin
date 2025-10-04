@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+// src/App.tsx
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthProvider';
 import WalletPage from './pages/WalletPage';
 import RegisterLogin from './components/auth/RegisterLogin';
@@ -11,18 +12,22 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<WalletPage />} />
+        {/* Root route - redirect to wallet page */}
+        <Route path="/" element={<Navigate to="/wallet" replace />} />
+        
+        <Route path="/wallet" element={<WalletPage />} />
         <Route path="/auth" element={<RegisterLogin />} />
-        <Route path="/register" element={<RegisterLogin />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/guess/:id" element={<GuessPage />} />
+        <Route path="/guess/:guessId" element={<GuessPage />} />
+        
+        {/* Catch-all route for 404 */}
+        <Route path="*" element={<Navigate to="/wallet" replace />} />
       </Routes>
-      
-      <ToastContainer 
+      <ToastContainer
         position="top-right"
-        autoClose={5000}
+        autoClose={3000}
         hideProgressBar={false}
-        newestOnTop={false}
+        newestOnTop={true}
         closeOnClick
         rtl={false}
         pauseOnFocusLoss

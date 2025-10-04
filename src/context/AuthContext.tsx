@@ -1,3 +1,4 @@
+// src/context/AuthContext.tsx
 import { createContext, useContext } from 'react';
 
 export type WalletInfo = {
@@ -18,9 +19,10 @@ export interface AuthContextType {
   disconnectWallet: () => Promise<void>;
   handleLogin: () => Promise<void>;
   handleRegister: () => Promise<void>;
-  // ADDED: Missing properties that Navbar needs
   walletAddress: string | null;
   isConnected: boolean;
+  // NEW: Add provider access
+  getWalletProvider: () => any;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
