@@ -7,9 +7,13 @@ import {
   Copy,
   Menu,
   X,
+  type LucideIcon, // Import LucideIcon for typing
 } from "lucide-react";
 
-interface NavItem {}
+interface NavItem {
+  // Define if you have specific properties for nav items
+}
+
 interface NavbarProps {
   navItems: NavItem[];
   activeNav: string;
@@ -19,6 +23,7 @@ interface NavbarProps {
   onCheckBalance: () => void;
 }
 
+// Mock useAuth hook
 const useAuth = () => ({
   walletAddress: "0x1aF07E7B3A2C87C99E03080c55dF98d752B31d7e",
   isConnected: true,
@@ -26,14 +31,40 @@ const useAuth = () => ({
 
 const ConnectionStatusIcon = ({ isConnected }: { isConnected: boolean }) => (
   <div
-    className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"} shadow-md shadow-inner ${isConnected ? "animate-pulse" : ""}`}
+    className={`w-3 h-3 rounded-full ${
+      isConnected ? "bg-green-500" : "bg-red-500"
+    } shadow-md shadow-inner ${isConnected ? "animate-pulse" : ""}`}
   />
 );
 
-const Navbar: React.FC<NavbarProps> = ({
-  onLogout,
-  onSyncDataPool,
-  onCheckBalance,
+// MODIFIED: Added an interface for MobileButton props
+interface MobileButtonProps {
+  label: string;
+  onClick: () => void;
+  icon: LucideIcon;
+  colorClass: string;
+}
+
+// MODIFIED: Typed the MobileButton component
+const MobileButton: React.FC<MobileButtonProps> = ({
+  label,
+  onClick,
+  icon: Icon,
+  colorClass,
+}) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center w-full ${colorClass} text-white px-4 py-3 rounded-xl transition-all duration-200 text-base font-semibold shadow-md hover:shadow-lg border border-white/20`}
+  >
+    <Icon className="w-5 h-5 mr-3" />
+    {label}
+  </button>
+);
+
+const Navbar: React.FC<Partial<NavbarProps>> = ({
+  onLogout = () => {},
+  onSyncDataPool = () => {},
+  onCheckBalance = () => {},
 }) => {
   const { walletAddress, isConnected } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -50,30 +81,18 @@ const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const formatWalletAddress = (address: string) => {
+  const formatWalletAddress = (address: string | null) => {
+    if (!address) return "";
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const copyToClipboard = (text: string) => {
-    if (walletAddress) {
+  const copyToClipboard = (text: string | null) => {
+    if (text) {
       navigator.clipboard.writeText(text);
       setCopyStatus("copied");
       setTimeout(() => setCopyStatus("idle"), 2000);
     }
   };
-
-  const MobileButton = ({ label, onClick, icon: Icon, colorClass }) => (
-    <button
-      onClick={() => {
-        onClick();
-        setIsMobileMenuOpen(false);
-      }}
-      className={`flex items-center w-full ${colorClass} text-white px-4 py-3 rounded-xl transition-all duration-200 text-base font-semibold shadow-md hover:shadow-lg border border-white/20`}
-    >
-      <Icon className="w-5 h-5 mr-3" />
-      {label}
-    </button>
-  );
 
   return (
     <div
@@ -135,7 +154,7 @@ const Navbar: React.FC<NavbarProps> = ({
                     >
                       <Copy className="w-4 h-4" />
                       {copyStatus === "copied" && (
-                        <span className="absolute top-0 right-0 transform translate-y-full px-2 py-1 bg-green-500 text-white text-xs rounded-lg whitespace-nowrap shadow-lg">
+                        <span className="absolute top-full right-0 mt-1 px-2 py-1 bg-green-500 text-white text-xs rounded-lg whitespace-nowrap shadow-lg">
                           Copied!
                         </span>
                       )}
@@ -193,7 +212,10 @@ const Navbar: React.FC<NavbarProps> = ({
                     </div>
                     <LogOut
                       className="w-5 h-5 text-red-400 cursor-pointer"
-                      onClick={onLogout}
+                      onClick={() => {
+                        onLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
                     />
                   </div>
 
@@ -227,13 +249,19 @@ const Navbar: React.FC<NavbarProps> = ({
               <div className="space-y-3 pt-2">
                 <MobileButton
                   label="Sync Data Pool"
-                  onClick={onSyncDataPool}
+                  onClick={() => {
+                    onSyncDataPool();
+                    setIsMobileMenuOpen(false);
+                  }}
                   icon={RefreshCcw}
                   colorClass="bg-indigo-600 hover:bg-indigo-700"
                 />
                 <MobileButton
                   label="Check Balance"
-                  onClick={onCheckBalance}
+                  onClick={() => {
+                    onCheckBalance();
+                    setIsMobileMenuOpen(false);
+                  }}
                   icon={DollarSign}
                   colorClass="bg-emerald-600 hover:bg-emerald-700"
                 />

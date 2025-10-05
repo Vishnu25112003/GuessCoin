@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+// src/components/dashboard/GuessRingContainer.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth"; // MODIFIED: Changed to a named import
+import { useAuth } from "../../hooks/useAuth";
 import type { GuessData } from "../../types/types";
 import CircularGuessRingUI from "./SimpleGuessRing";
 
@@ -15,22 +16,23 @@ interface HashDetails {
 }
 
 interface StoredGuessData {
-  Sno: number;
-  blockIncrementCount: number;
-  blockHashGuess: string;
-  tokenSize: number;
-  paymentPaidBet: string;
-  overWrite: boolean;
-  complex: boolean;
-  dummyHash: string;
-  actualHash: string;
-  secretKey: string;
-  guessId: number;
-  tokens: string;
-  timestamp: number;
+  Sno?: number;                     // 1..5
+  guessId?: number;                 // sometimes used
+  id?: number;                      // fallback
+  blockIncrementCount?: number;
+  blockHashGuess?: string;
+  tokenSize?: number;
+  paymentPaidBet?: string | number; // "0" or amount
+  overWrite?: boolean;
+  complex?: boolean;
+  dummyHash?: string;
+  actualHash?: string;
+  secretKey?: string;
+  tokens?: string;
+  timestamp?: number;
   txHash?: string;
   gasUsed?: string;
-  formattedPayment: string;
+  formattedPayment?: string;
 }
 
 interface GuessRingContainerProps {
@@ -42,6 +44,8 @@ interface GuessRingContainerProps {
   onCheckValidity?: (guessId: number) => void;
 }
 
+const IDs = [1, 2, 3, 4, 5];
+
 const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
   guesses,
   selectedGuess,
@@ -50,9 +54,9 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
   onVerify,
   onCheckValidity,
 }) => {
-  const auth = useAuth(); // MODIFIED: Adjusted hook usage accordingly
+  // Existing states for ring behavior
+  const auth = useAuth();
   const navigate = useNavigate();
-
   const [activeGuessId, setActiveGuessId] = useState<number | null>(null);
   const [clockwiseAngle, setClockwiseAngle] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -61,6 +65,9 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [isRotationPaused, setIsRotationPaused] = useState(false);
   const [isSelectedGuessPlaced, setIsSelectedGuessPlaced] = useState(false);
+
+  // NEW: persistent per-Sno details: 1..5
+  const [allGuessDetails, setAllGuessDetails] = useState<Record<number, HashDetails>>({});
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -77,86 +84,123 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
     return () => clearInterval(interval);
   }, [isRotationPaused]);
 
-  const checkGuessDataInStorage = (guessId: number): boolean => {
+  // Helpers to normalize storage -> HashDetails
+  const toHashDetails = (d?: StoredGuessData): HashDetails | null => {
+    if (!d) return null;
+    return {
+      actualHash: d.actualHash ?? "-",
+      secretKey: d.secretKey ?? "-",
+      dummyHash: d.dummyHash ?? "-",
+      targetBlockNumber: Number(d.blockIncrementCount ?? 0),
+      tokenSizes: Number(d.tokenSize ?? 0),
+      paidGuess: String(d.paymentPaidBet ?? "0") !== "0",
+      complex: Boolean(d.complex ?? false),
+    };
+  };
+
+  // Read a single guess by id with fallbacks beyond allGuessSubmissions (safe no-ops if missing)
+  const readSingleGuess = (guessId: number): HashDetails | null => {
     try {
-      const lastSubmission = localStorage.getItem('lastGuessSubmission');
-      if (lastSubmission) {
-        const data: StoredGuessData = JSON.parse(lastSubmission);
-        if (data.guessId === guessId) return true;
+      // 1) Aggregate store
+      const aggRaw = localStorage.getItem("allGuessSubmissions");
+      if (aggRaw) {
+        const parsed = JSON.parse(aggRaw);
+        const list: StoredGuessData[] = Array.isArray(parsed)
+          ? parsed
+          : Object.values(parsed ?? {});
+        const found = list.find(
+          (x) => Number(x.Sno ?? x.guessId ?? x.id) === guessId
+        );
+        const hd = toHashDetails(found);
+        if (hd) return hd;
       }
+
+      // 2) Account-scoped per-id
       const currentAccount = localStorage.getItem("currentAccount");
       if (currentAccount) {
-        const firebaseKey = `guesses/${currentAccount}/${guessId}`;
-        const guessData = localStorage.getItem(firebaseKey);
-        if (guessData) return true;
+        const key = `guesses/${currentAccount}/${guessId}`;
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const d: StoredGuessData = JSON.parse(raw);
+          const hd = toHashDetails(d);
+          if (hd) return hd;
+        }
       }
-      return false;
+
+      // 3) lastGuessSubmission (only if matches)
+      const last = localStorage.getItem("lastGuessSubmission");
+      if (last) {
+        const d: StoredGuessData = JSON.parse(last);
+        const idInLast = Number(d.guessId ?? d.Sno ?? d.id);
+        if (idInLast === guessId) {
+          const hd = toHashDetails(d);
+          if (hd) return hd;
+        }
+      }
+
+      return null;
     } catch {
-      return false;
+      return null;
     }
   };
 
+  // Build full per-Sno map 1..5
+  const buildAll = (): Record<number, HashDetails> => {
+    const map: Record<number, HashDetails> = {};
+    for (const id of IDs) {
+      const hd = readSingleGuess(id);
+      if (hd) map[id] = hd;
+    }
+    return map;
+  };
+
+  // Prime and auto-refresh the per-Sno details
+  useEffect(() => {
+    const refresh = () => setAllGuessDetails(buildAll());
+    refresh();
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+
+  // Keep existing “UNVERIFIED” chip logic in sync with selectedGuess presence
   useEffect(() => {
     if (selectedGuess) {
-      const hasData = checkGuessDataInStorage(selectedGuess.id);
-      setIsSelectedGuessPlaced(hasData);
+      setIsSelectedGuessPlaced(Boolean(allGuessDetails[selectedGuess.id]));
     } else {
       setIsSelectedGuessPlaced(false);
     }
-  }, [selectedGuess]);
+  }, [selectedGuess, allGuessDetails]);
 
+  // Legacy center fetch for modal-style details (unchanged)
   const fetchGuessDataFromStorage = (guessId: number): HashDetails => {
-    try {
-        const lastSubmission = localStorage.getItem('lastGuessSubmission');
-        if (lastSubmission) {
-            const data: StoredGuessData = JSON.parse(lastSubmission);
-            if (data.guessId === guessId) {
-                return {
-                    actualHash: data.actualHash || '-',
-                    secretKey: data.secretKey || '-',
-                    dummyHash: data.dummyHash || '-',
-                    targetBlockNumber: data.blockIncrementCount || 0,
-                    tokenSizes: data.tokenSize || 0,
-                    paidGuess: data.paymentPaidBet !== '0',
-                    complex: data.complex || false,
-                };
-            }
-        }
-
-        const currentAccount = localStorage.getItem("currentAccount");
-        if (currentAccount) {
-            const firebaseKey = `guesses/${currentAccount}/${guessId}`;
-            const guessData = localStorage.getItem(firebaseKey);
-            if (guessData) {
-                const data: StoredGuessData = JSON.parse(guessData);
-                return {
-                    actualHash: data.actualHash || '-',
-                    secretKey: data.secretKey || '-',
-                    dummyHash: data.dummyHash || '-',
-                    targetBlockNumber: data.blockIncrementCount || 0,
-                    tokenSizes: data.tokenSize || 0,
-                    paidGuess: data.paymentPaidBet !== '0',
-                    complex: data.complex || false,
-                };
-            }
-        }
-        return { actualHash: '-', secretKey: '-', dummyHash: '-', targetBlockNumber: 0, tokenSizes: 0, paidGuess: false, complex: false };
-    } catch (error) {
-        console.error("Error fetching guess data from storage:", error);
-        return { actualHash: '-', secretKey: '-', dummyHash: '-', targetBlockNumber: 0, tokenSizes: 0, paidGuess: false, complex: false };
-    }
+    return (
+      readSingleGuess(guessId) ?? {
+        actualHash: "-",
+        secretKey: "-",
+        dummyHash: "-",
+        targetBlockNumber: 0,
+        tokenSizes: 0,
+        paidGuess: false,
+        complex: false,
+      }
+    );
   };
 
-  const getOrbitRadius = () => isMobile ? Math.min(window.innerWidth, window.innerHeight) * 0.22 : 200;
-  const getNumberSize = () => isMobile ? 50 : 60;
+  // Layout helpers (unchanged)
+  const getOrbitRadius = () =>
+    isMobile ? Math.min(window.innerWidth, window.innerHeight) * 0.22 : 200;
+  const getNumberSize = () => (isMobile ? 50 : 60);
   const orbitRadius = getOrbitRadius();
   const numberSize = getNumberSize();
 
+  // Actions (unchanged)
   const handleNewGuessClick = (guessId: number) => {
     navigate(`/guess/${guessId}`);
-    if (onNewGuess) {
-      onNewGuess(guessId);
-    }
+    if (onNewGuess) onNewGuess(guessId);
   };
 
   const handleNumberClick = (guess: GuessData) => {
@@ -167,13 +211,8 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
     }
   };
 
-  const handleActionClick = (
-    action?: (id: number) => void,
-    guessId?: number
-  ) => {
-    if (action && guessId) {
-        action(guessId);
-    }
+  const handleActionClick = (action?: (id: number) => void, guessId?: number) => {
+    if (action && guessId) action(guessId);
     setActiveGuessId(null);
     setIsRotationPaused(false);
   };
@@ -218,33 +257,60 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
   };
   const bigCirclePosition = getBigCirclePosition();
 
-  const actionButtons = [
-    { label: 'New Guess', color: '#3b82f6', bgColor: 'from-blue-500 to-blue-600', icon: '➕', action: handleNewGuessClick, description: 'Create new guess' },
-    { label: 'Verify', color: '#10b981', bgColor: 'from-green-500 to-green-600', icon: '✔️', action: onVerify, description: 'Verify guess' },
-    { label: 'Check Validity', color: '#f59e0b', bgColor: 'from-yellow-500 to-yellow-600', icon: '🔍', action: onCheckValidity, description: 'Check validity' },
-  ];
+  const actionButtons = useMemo(
+    () => [
+      {
+        label: "New Guess",
+        color: "#3b82f6",
+        bgColor: "from-blue-500 to-blue-600",
+        icon: "➕",
+        action: handleNewGuessClick,
+        description: "Create new guess",
+      },
+      {
+        label: "Verify",
+        color: "#10b981",
+        bgColor: "from-green-500 to-green-600",
+        icon: "✔️",
+        action: onVerify,
+        description: "Verify guess",
+      },
+      {
+        label: "Check Validity",
+        color: "#f59e0b",
+        bgColor: "from-yellow-500 to-yellow-600",
+        icon: "🔍",
+        action: onCheckValidity,
+        description: "Check validity",
+      },
+    ],
+    [onVerify, onCheckValidity]
+  );
 
   return (
-    <CircularGuessRingUI
-      guesses={guesses}
-      selectedGuess={selectedGuess}
-      activeGuessId={activeGuessId}
-      clockwiseAngle={clockwiseAngle}
-      isExpanded={isExpanded}
-      hashDetails={hashDetails}
-      loading={loading}
-      isMobile={isMobile}
-      orbitRadius={orbitRadius}
-      numberSize={numberSize}
-      bigCirclePosition={bigCirclePosition}
-      actionButtons={actionButtons}
-      isSelectedGuessPlaced={isSelectedGuessPlaced}
-      onNumberClick={handleNumberClick}
-      onActionClick={handleActionClick}
-      onCenterClick={handleCenterClick}
-      onCloseActions={handleCloseActions}
-      onBackFromDetails={handleBackFromDetails}
-    />
+    <>
+      {/* Existing ring UI (unchanged) */}
+      <CircularGuessRingUI
+        guesses={guesses}
+        selectedGuess={selectedGuess}
+        activeGuessId={activeGuessId}
+        clockwiseAngle={clockwiseAngle}
+        isExpanded={isExpanded}
+        hashDetails={hashDetails}
+        loading={loading}
+        isMobile={isMobile}
+        orbitRadius={orbitRadius}
+        numberSize={numberSize}
+        bigCirclePosition={bigCirclePosition}
+        actionButtons={actionButtons as any}
+        isSelectedGuessPlaced={isSelectedGuessPlaced}
+        onNumberClick={handleNumberClick}
+        onActionClick={handleActionClick}
+        onCenterClick={handleCenterClick}
+        onCloseActions={handleCloseActions}
+        onBackFromDetails={handleBackFromDetails}
+      />
+    </>
   );
 };
 

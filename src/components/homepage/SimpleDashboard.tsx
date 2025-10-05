@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import GuessRingContainer from "./GuessRingContainer"; // Import the new container component
+// MODIFIED: Imported useNavigate
+import { useNavigate } from "react-router-dom";
+import GuessRingContainer from "./GuessRingContainer";
 import type { GuessData } from "../../types/types";
 
 interface MainDashboardProps {
@@ -8,9 +10,11 @@ interface MainDashboardProps {
 
 const MainDashboard: React.FC<MainDashboardProps> = ({ guesses }) => {
   const [selectedGuess, setSelectedGuess] = useState<GuessData | null>(
-    guesses[0] || null,
+    guesses[0] || null
   );
   const [, setCurrentAction] = useState("");
+  // MODIFIED: Initialized the navigate function
+  const navigate = useNavigate();
 
   return (
     <div className="pt-16 font-mono">
@@ -37,10 +41,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ guesses }) => {
           guesses={guesses}
           selectedGuess={selectedGuess}
           onSelectGuess={(g) => setSelectedGuess(g)}
-          // MODIFIED: Updated props to correctly handle the guessId
-          onNewGuess={(guessId) => setCurrentAction(`New Guess ${guessId}`)}
-          onVerify={(guessId) => setCurrentAction(`Verify ${guessId}`)}
-          onCheckValidity={(guessId) => setCurrentAction(`Check Validity ${guessId}`)}
+          onNewGuess={(guessId) => navigate(`/guess/${guessId}`)}
+          // MODIFIED: The onVerify prop now navigates to the verify page
+          onVerify={(guessId) => navigate(`/verify/${guessId}`)}
+          onCheckValidity={(guessId) =>
+            setCurrentAction(`Check Validity ${guessId}`)
+          }
         />
       </div>
 

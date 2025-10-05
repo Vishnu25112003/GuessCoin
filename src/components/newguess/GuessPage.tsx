@@ -1,18 +1,27 @@
 // src/components/newguess/GuessPage.tsx
 
 import React, { useState, useEffect } from "react";
+
 import { useParams, useNavigate } from "react-router-dom";
+
 import Web3 from "web3";
+
 import { ref, set } from "firebase/database";
+
 import GuessUI, { ConfirmationModal } from "./UI";
+
 import { useAuth } from "../../context/AuthContext";
+
 import { database } from "../../config/firebase";
+
 import {
   TOKEN_CONTRACT_ADDRESS,
   TOKEN_CONTRACT_ABI,
   LOGIC_CONTRACT_ABI,
 } from "../../config/contracts";
+
 import { POLYGON_AMOY_TESTNET } from "../../config/networks";
+
 // Import only hashing functions from HashUtils
 import {
   genHashData,
@@ -28,12 +37,15 @@ const convertBigIntToString = (obj: any): any => {
   if (obj === null || obj === undefined) {
     return obj;
   }
+
   if (typeof obj === "bigint") {
     return obj.toString();
   }
+
   if (Array.isArray(obj)) {
     return obj.map(convertBigIntToString);
   }
+
   if (typeof obj === "object") {
     const converted: any = {};
     for (const key in obj) {
@@ -43,6 +55,7 @@ const convertBigIntToString = (obj: any): any => {
     }
     return converted;
   }
+
   return obj;
 };
 
@@ -90,7 +103,8 @@ const GuessPage: React.FC = () => {
   const [secretHashInput, setSecretHashInput] = useState("");
   const [dummyHash, setDummyHash] = useState(ZERO_HASH);
   const [tokenSize, setTokenSize] = useState(4);
-  const [tokens, setTokens] = useState<string[]>([]); // FIXED: Added proper typing
+  // FIXED: Explicitly type tokens as string[] to resolve never[] inference
+  const [tokens, setTokens] = useState<string[]>([]);
 
   // Loading states
   const [isGeneratingActual, setIsGeneratingActual] = useState(false);
@@ -129,8 +143,8 @@ const GuessPage: React.FC = () => {
         try {
           const cleanedHash = await removePrefix(actualHash);
           if (cleanedHash.length >= tokenSize) {
-            const generatedTokens = await tokenize(cleanedHash, tokenSize);
-            setTokens(generatedTokens); // FIXED: Now works with proper typing
+            const generatedTokens: string[] = await tokenize(cleanedHash, tokenSize);
+            setTokens(generatedTokens); // FIXED: Now compatible with string[] state
           } else {
             setTokens([]);
           }
@@ -178,7 +192,6 @@ const GuessPage: React.FC = () => {
     const message = value
       ? "Do you want to proceed with Paid Guess?\n\nNote: This requires 25 tokens in your wallet and may need token approval."
       : "Do you want to proceed with Free Guess?";
-
     setConfirmModal({
       isOpen: true,
       title: "Confirmation",
@@ -388,6 +401,7 @@ const GuessPage: React.FC = () => {
             "Logic contract not found. Please complete registration first."
           );
         }
+
         contractAddress = logicAddress;
         contractABI = LOGIC_CONTRACT_ABI;
       }
@@ -397,14 +411,14 @@ const GuessPage: React.FC = () => {
         contractAddress
       );
 
-      return contractInstance;
+      return { contractInstance, web3 };
     } catch (error: any) {
       console.error("Error initializing contract:", error);
       throw error;
     }
   };
 
-  // FIXED: Complete submission with BigInt handling
+  // FIXED: Complete submission with BigInt handling and token approval for paid guesses
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
@@ -439,7 +453,7 @@ const GuessPage: React.FC = () => {
       console.log("Using registered wallet:", registeredWallet);
       console.log("Logic contract address:", logicAddress);
 
-      const logicContract = await initContractInstance("logic");
+      const { contractInstance: logicContract, web3 } = await initContractInstance("logic");
       console.log("Contract initialized successfully");
 
       const paymentAmount = paidGuess ? "25000000000000000000" : "0";
@@ -467,13 +481,14 @@ const GuessPage: React.FC = () => {
       // Check token balance for paid guess
       if (paidGuess) {
         try {
-          const tokenContract = await initContractInstance("token");
-          const balance = await tokenContract.methods
+          const { contractInstance: tokenContract } = await initContractInstance("token");
+          const balanceRaw = await tokenContract.methods
             .balanceOf(registeredWallet)
             .call();
-          
-          // FIXED: Proper type handling for balance
-          const balanceInEther = parseFloat(String(balance)) / 1e18;
+          // FIXED: Coerce to string with default to handle unexpected types
+          const balanceStr = String(balanceRaw || "0");
+          const balance = BigInt(balanceStr);
+          const balanceInEther = Number(balance) / 1e18;
           console.log("Token balance:", balanceInEther);
 
           if (balanceInEther < 25) {
@@ -481,16 +496,51 @@ const GuessPage: React.FC = () => {
               `Insufficient token balance. You need 25 tokens but have ${balanceInEther.toFixed(2)} tokens.`
             );
           }
+
+          // FIXED: Use native BigInt for allowance comparison (Web3.js v4+ compatible) with type-safe coercion
+          const requiredAllowance = web3.utils.toWei("25", "ether");
+          const requiredStr = String(requiredAllowance || "0");
+          const requiredBigInt = BigInt(requiredStr);
+
+          const allowanceRaw = await tokenContract.methods
+            .allowance(registeredWallet, logicAddress)
+            .call();
+          const allowanceStr = String(allowanceRaw || "0");
+          const allowanceBigInt = BigInt(allowanceStr);
+
+          if (allowanceBigInt < requiredBigInt) {
+            console.log("Token approval needed. Initiating approve transaction...");
+            await tokenContract.methods
+              .approve(logicAddress, requiredAllowance)
+              .send({
+                from: registeredWallet,
+                gas: "100000",
+              })
+              .on("transactionHash", (hash: string) => {
+                console.log("Approval transaction hash:", hash);
+              })
+              .on("receipt", (receipt: any) => {
+                console.log("Approval successful:", receipt);
+              })
+              .on("error", (error: any) => {
+                console.error("Approval error:", error);
+                throw new Error("Token approval failed. Please try again.");
+              });
+            console.log("Token approval completed.");
+          } else {
+            console.log("Sufficient allowance already granted.");
+          }
+
         } catch (error: any) {
           if (error.message.includes("Insufficient token balance")) {
             throw error;
           }
-          console.warn("Could not check token balance:", error);
+
+          console.warn("Could not check token balance or allowance:", error);
         }
       }
 
       console.log("Sending transaction...");
-
       // Send transaction
       const result = await logicContract.methods
         .submitBlockGuess(
@@ -511,14 +561,11 @@ const GuessPage: React.FC = () => {
         })
         .on("receipt", function (receipt: any) {
           console.log("Transaction receipt received");
-
           // FIXED: Convert BigInt values to strings before storing
           const safeReceipt = convertBigIntToString(receipt);
-
           if (safeReceipt.status) {
             const events = safeReceipt.events;
             let emittedValues = null;
-
             if (events && events.guessSubmitted) {
               emittedValues = events.guessSubmitted.returnValues;
               console.log("Guess submitted successfully:", emittedValues);
@@ -544,17 +591,34 @@ const GuessPage: React.FC = () => {
               formattedPayment: paidGuess ? "25 Tokens" : "Free",
             };
 
-            // Store in localStorage (safe JSON serialization)
-            localStorage.setItem(
-              "lastGuessSubmission",
-              JSON.stringify(exportableData)
-            );
+            // ✅ FIX: Save multiple guesses in localStorage
+            const existingGuessesRaw = localStorage.getItem("allGuessSubmissions");
+            let existingGuesses: ExportableGuessData[] = [];
+            if (existingGuessesRaw) {
+              try {
+                existingGuesses = JSON.parse(existingGuessesRaw);
+              } catch (e) {
+                console.error("Error parsing existing guesses:", e);
+                existingGuesses = [];
+              }
+            }
+
+            // Check if same guessId exists → replace, else push
+            const index = existingGuesses.findIndex(g => g.guessId === guessId);
+            if (index !== -1) {
+              existingGuesses[index] = exportableData;
+            } else {
+              existingGuesses.push(exportableData);
+            }
+
+            // Save back to localStorage
+            localStorage.setItem("allGuessSubmissions", JSON.stringify(existingGuesses));
+
+            // 🔹 Still keep the latest one separately (optional)
+            localStorage.setItem("lastGuessSubmission", JSON.stringify(exportableData));
 
             // Store in Firebase (safe JSON serialization)
-            const guessRef = ref(
-              database,
-              `guesses/${registeredWallet}/${guessId}`
-            );
+            const guessRef = ref(database, `guesses/${registeredWallet}/${guessId}`);
             set(guessRef, exportableData).catch((err) => {
               console.error("Firebase storage error:", err);
             });
@@ -577,11 +641,10 @@ const GuessPage: React.FC = () => {
           console.error("Transaction error:", error);
           throw error;
         });
+
     } catch (error: any) {
       console.error("Error submitting guess:", error);
-
       let errorMessage = "An error occurred while submitting the form.";
-
       if (
         error.message?.includes("User denied transaction signature") ||
         error.code === 4001
@@ -608,6 +671,8 @@ const GuessPage: React.FC = () => {
         errorMessage = error.message;
       } else if (error.message?.includes("Wrong network")) {
         errorMessage = error.message;
+      } else if (error.message?.includes("Token approval failed")) {
+        errorMessage = "Token approval transaction failed. Please approve manually and retry.";
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -644,7 +709,7 @@ const GuessPage: React.FC = () => {
         setSecretHashInput("");
         setDummyHash(ZERO_HASH);
         setTokenSize(4);
-        setTokens([]);
+        setTokens([]); // FIXED: Compatible with string[] type
         setIsFormReadonly(true);
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
       },
@@ -659,6 +724,34 @@ const GuessPage: React.FC = () => {
 
   return (
     <>
+      <GuessUI
+        guessId={guessId}
+        paidGuess={paidGuess}
+        onPaidGuessChange={handlePaidGuessChange}
+        overwrite={overwrite}
+        onOverwriteChange={handleOverwriteChange}
+        complex={complex}
+        onComplexChange={handleComplexChange}
+        blockIncrement={blockIncrement}
+        onBlockIncrementChange={handleBlockIncrementChange}
+        actualHash={actualHash}
+        onActualHashChange={handleActualHashChange}
+        onGenerateActualHash={handleGenerateActualHash}
+        isGeneratingActual={isGeneratingActual}
+        secretHash={secretHash}
+        onSecretHashChange={handleSecretHashChange}
+        onGenerateSecretHash={handleGenerateSecretHash}
+        isGeneratingSecret={isGeneratingSecret}
+        dummyHash={dummyHash}
+        tokenSize={tokenSize}
+        onTokenSizeChange={handleTokenSizeChange}
+        tokens={tokens}
+        isFormReadonly={isFormReadonly}
+        isSubmitting={isSubmitting}
+        onSubmit={handleSubmit}
+        onClear={handleClear}
+        onBack={handleBack}
+      />
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -670,34 +763,6 @@ const GuessPage: React.FC = () => {
         type={confirmModal.type}
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
-      />
-      <GuessUI
-        guessId={guessId}
-        paidGuess={paidGuess}
-        onPaidGuessChange={handlePaidGuessChange}
-        overwrite={overwrite}
-        onOverwriteChange={handleOverwriteChange}
-        complex={complex}
-        onComplexChange={handleComplexChange}
-        blockIncrement={blockIncrement}
-        onBlockIncrementChange={handleBlockIncrementChange}
-        actualHash={actualHashInput}
-        onActualHashChange={handleActualHashChange}
-        onGenerateActualHash={handleGenerateActualHash}
-        isGeneratingActual={isGeneratingActual}
-        secretHash={secretHashInput}
-        onSecretHashChange={handleSecretHashChange}
-        onGenerateSecretHash={handleGenerateSecretHash}
-        isGeneratingSecret={isGeneratingSecret}
-        dummyHash={dummyHash}
-        tokenSize={tokenSize}
-        onTokenSizeChange={handleTokenSizeChange}
-        tokens={tokens}
-        onSubmit={handleSubmit}
-        onClear={handleClear}
-        onBack={handleBack}
-        isSubmitting={isSubmitting}
-        isFormReadonly={isFormReadonly}
       />
     </>
   );
