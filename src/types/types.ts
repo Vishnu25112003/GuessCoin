@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 export interface GuessData {
+  angle: number;
+  number: ReactNode;
   starIndex: undefined;
   id: number;
   status: "verified" | "unverified";

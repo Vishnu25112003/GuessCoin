@@ -79,17 +79,17 @@ interface ExportableGuessData extends GuessSubmissionData {
   tokens: string[];
   timestamp: number;
   txHash?: string;
-  gasUsed?: string; // FIXED: Changed from number to string
+  gasUsed?: string;
   formattedPayment: string;
+  // NEW: Store contract-returned block number for UI display
+  contractBlockNumber?: string;
 }
 
 const GuessPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  // UPDATED: Use useNavigate hook for navigation
   const navigate = useNavigate();
   const guessId = parseInt(id || "1", 10);
 
-  // Get registered wallet from AuthContext
   const { connectedAccount } = useAuth();
 
   // State management
@@ -103,7 +103,6 @@ const GuessPage: React.FC = () => {
   const [secretHashInput, setSecretHashInput] = useState("");
   const [dummyHash, setDummyHash] = useState(ZERO_HASH);
   const [tokenSize, setTokenSize] = useState(4);
-  // FIXED: Explicitly type tokens as string[] to resolve never[] inference
   const [tokens, setTokens] = useState<string[]>([]);
 
   // Loading states
@@ -144,7 +143,7 @@ const GuessPage: React.FC = () => {
           const cleanedHash = await removePrefix(actualHash);
           if (cleanedHash.length >= tokenSize) {
             const generatedTokens: string[] = await tokenize(cleanedHash, tokenSize);
-            setTokens(generatedTokens); // FIXED: Now compatible with string[] state
+            setTokens(generatedTokens);
           } else {
             setTokens([]);
           }
@@ -208,7 +207,6 @@ const GuessPage: React.FC = () => {
 
   const handleOverwriteChange = (value: boolean) => {
     if (value) {
-      // Ask confirmation ONLY for registered wallet
       if (connectedAccount && connectedAccount !== "0x0") {
         setConfirmModal({
           isOpen: true,
@@ -225,7 +223,6 @@ const GuessPage: React.FC = () => {
           cancelText: "Cancel",
         });
       } else {
-        // No registered wallet - just enable without confirmation
         setOverwrite(true);
         setIsFormReadonly(false);
       }
@@ -418,7 +415,6 @@ const GuessPage: React.FC = () => {
     }
   };
 
-  // FIXED: Complete submission with BigInt handling and token approval for paid guesses
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
@@ -485,7 +481,6 @@ const GuessPage: React.FC = () => {
           const balanceRaw = await tokenContract.methods
             .balanceOf(registeredWallet)
             .call();
-          // FIXED: Coerce to string with default to handle unexpected types
           const balanceStr = String(balanceRaw || "0");
           const balance = BigInt(balanceStr);
           const balanceInEther = Number(balance) / 1e18;
@@ -497,7 +492,6 @@ const GuessPage: React.FC = () => {
             );
           }
 
-          // FIXED: Use native BigInt for allowance comparison (Web3.js v4+ compatible) with type-safe coercion
           const requiredAllowance = web3.utils.toWei("25", "ether");
           const requiredStr = String(requiredAllowance || "0");
           const requiredBigInt = BigInt(requiredStr);
@@ -541,7 +535,6 @@ const GuessPage: React.FC = () => {
       }
 
       console.log("Sending transaction...");
-      // Send transaction
       const result = await logicContract.methods
         .submitBlockGuess(
           guessId,
@@ -561,17 +554,22 @@ const GuessPage: React.FC = () => {
         })
         .on("receipt", function (receipt: any) {
           console.log("Transaction receipt received");
-          // FIXED: Convert BigInt values to strings before storing
           const safeReceipt = convertBigIntToString(receipt);
           if (safeReceipt.status) {
             const events = safeReceipt.events;
             let emittedValues = null;
+            let contractBlockNumber = blockIncrement.toString(); // Fallback to input
             if (events && events.guessSubmitted) {
               emittedValues = events.guessSubmitted.returnValues;
               console.log("Guess submitted successfully:", emittedValues);
+              // NEW: Extract contract-returned _guessBlockNumber (index 2 or named property)
+              contractBlockNumber =
+                emittedValues._guessBlockNumber ||
+                emittedValues[2] ||
+                emittedValues.guessBlockNumber ||
+                blockIncrement.toString();
             }
 
-            // FIXED: Store with string values for BigInt fields
             const exportableData: ExportableGuessData = {
               Sno: guessId,
               blockIncrementCount: blockIncrement,
@@ -587,11 +585,13 @@ const GuessPage: React.FC = () => {
               tokens: tokens,
               timestamp: Date.now(),
               txHash: safeReceipt.transactionHash,
-              gasUsed: safeReceipt.gasUsed?.toString() || "0", // FIXED: Convert to string
+              gasUsed: safeReceipt.gasUsed?.toString() || "0",
               formattedPayment: paidGuess ? "25 Tokens" : "Free",
+              // NEW: Store the contract block number
+              contractBlockNumber: contractBlockNumber,
             };
 
-            // ✅ FIX: Save multiple guesses in localStorage
+            // Save multiple guesses in localStorage
             const existingGuessesRaw = localStorage.getItem("allGuessSubmissions");
             let existingGuesses: ExportableGuessData[] = [];
             if (existingGuessesRaw) {
@@ -603,7 +603,6 @@ const GuessPage: React.FC = () => {
               }
             }
 
-            // Check if same guessId exists → replace, else push
             const index = existingGuesses.findIndex(g => g.guessId === guessId);
             if (index !== -1) {
               existingGuesses[index] = exportableData;
@@ -611,13 +610,10 @@ const GuessPage: React.FC = () => {
               existingGuesses.push(exportableData);
             }
 
-            // Save back to localStorage
             localStorage.setItem("allGuessSubmissions", JSON.stringify(existingGuesses));
-
-            // 🔹 Still keep the latest one separately (optional)
             localStorage.setItem("lastGuessSubmission", JSON.stringify(exportableData));
 
-            // Store in Firebase (safe JSON serialization)
+            // Store in Firebase
             const guessRef = ref(database, `guesses/${registeredWallet}/${guessId}`);
             set(guessRef, exportableData).catch((err) => {
               console.error("Firebase storage error:", err);
@@ -626,7 +622,7 @@ const GuessPage: React.FC = () => {
             setConfirmModal({
               isOpen: true,
               title: "Success!",
-              message: `Guess submitted successfully!\n\nTransaction Hash: ${safeReceipt.transactionHash}\nGas Used: ${safeReceipt.gasUsed}\nWallet: ${registeredWallet}`,
+              message: `Guess submitted successfully!\n\nTransaction Hash: ${safeReceipt.transactionHash}\nGas Used: ${safeReceipt.gasUsed}\nWallet: ${registeredWallet}\nContract Block: ${contractBlockNumber}`,
               onConfirm: () => {
                 setConfirmModal((prev) => ({ ...prev, isOpen: false }));
                 navigate("/dashboard");
@@ -690,7 +686,6 @@ const GuessPage: React.FC = () => {
     }
   };
 
-  // FIXED: Clear button now resets form instead of navigating
   const handleClear = () => {
     setConfirmModal({
       isOpen: true,
@@ -698,7 +693,6 @@ const GuessPage: React.FC = () => {
       message:
         "Are you sure you want to clear all data? This will reset the entire form.",
       onConfirm: () => {
-        // Reset all form fields
         setPaidGuess(false);
         setOverwrite(false);
         setComplex(false);
@@ -709,7 +703,7 @@ const GuessPage: React.FC = () => {
         setSecretHashInput("");
         setDummyHash(ZERO_HASH);
         setTokenSize(4);
-        setTokens([]); // FIXED: Compatible with string[] type
+        setTokens([]);
         setIsFormReadonly(true);
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
       },
@@ -717,7 +711,6 @@ const GuessPage: React.FC = () => {
     });
   };
 
-  // NEW: Navigate back to dashboard (assuming the main page is /dashboard)
   const handleBack = () => {
     navigate("/dashboard");
   };

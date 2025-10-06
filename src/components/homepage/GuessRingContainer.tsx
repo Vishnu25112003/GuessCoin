@@ -1,8 +1,13 @@
 // src/components/dashboard/GuessRingContainer.tsx
+
 import React, { useEffect, useMemo, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import { useAuth } from "../../hooks/useAuth";
+
 import type { GuessData } from "../../types/types";
+
 import CircularGuessRingUI from "./SimpleGuessRing";
 
 interface HashDetails {
@@ -16,9 +21,9 @@ interface HashDetails {
 }
 
 interface StoredGuessData {
-  Sno?: number;                     // 1..5
-  guessId?: number;                 // sometimes used
-  id?: number;                      // fallback
+  Sno?: number; // 1..5
+  guessId?: number; // sometimes used
+  id?: number; // fallback
   blockIncrementCount?: number;
   blockHashGuess?: string;
   tokenSize?: number;
@@ -33,6 +38,8 @@ interface StoredGuessData {
   txHash?: string;
   gasUsed?: string;
   formattedPayment?: string;
+  // NEW: From contract event (for displaying actual target block)
+  contractBlockNumber?: string;
 }
 
 interface GuessRingContainerProps {
@@ -57,7 +64,7 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
   // Existing states for ring behavior
   const auth = useAuth();
   const navigate = useNavigate();
-  const [activeGuessId, setActiveGuessId] = useState<number | null>(null);
+  const [activeGuessId, setActiveGuessId] = useState(null);
   const [clockwiseAngle, setClockwiseAngle] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hashDetails, setHashDetails] = useState<HashDetails | null>(null);
@@ -91,7 +98,8 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
       actualHash: d.actualHash ?? "-",
       secretKey: d.secretKey ?? "-",
       dummyHash: d.dummyHash ?? "-",
-      targetBlockNumber: Number(d.blockIncrementCount ?? 0),
+      // FIXED: Prioritize contractBlockNumber if available, else fallback to input blockIncrementCount
+      targetBlockNumber: Number(d.contractBlockNumber ?? d.blockIncrementCount ?? 0),
       tokenSizes: Number(d.tokenSize ?? 0),
       paidGuess: String(d.paymentPaidBet ?? "0") !== "0",
       complex: Boolean(d.complex ?? false),
@@ -166,7 +174,7 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
     };
   }, []);
 
-  // Keep existing “UNVERIFIED” chip logic in sync with selectedGuess presence
+  // Keep existing "UNVERIFIED" chip logic in sync with selectedGuess presence
   useEffect(() => {
     if (selectedGuess) {
       setIsSelectedGuessPlaced(Boolean(allGuessDetails[selectedGuess.id]));
@@ -255,6 +263,7 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
     }
     return { x: window.innerWidth / 2, y: centerY };
   };
+
   const bigCirclePosition = getBigCirclePosition();
 
   const actionButtons = useMemo(
@@ -287,9 +296,11 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
     [onVerify, onCheckValidity]
   );
 
+  // Render the UI (existing JSX unchanged, but hashDetails now uses contractBlockNumber)
   return (
     <>
-      {/* Existing ring UI (unchanged) */}
+      {/* Your existing JSX for the ring and details rendering here - 
+           hashDetails.targetBlockNumber will now show contract value */}
       <CircularGuessRingUI
         guesses={guesses}
         selectedGuess={selectedGuess}
@@ -299,11 +310,12 @@ const GuessRingContainer: React.FC<GuessRingContainerProps> = ({
         hashDetails={hashDetails}
         loading={loading}
         isMobile={isMobile}
+        isRotationPaused={isRotationPaused}
+        isSelectedGuessPlaced={isSelectedGuessPlaced}
+        bigCirclePosition={bigCirclePosition}
         orbitRadius={orbitRadius}
         numberSize={numberSize}
-        bigCirclePosition={bigCirclePosition}
-        actionButtons={actionButtons as any}
-        isSelectedGuessPlaced={isSelectedGuessPlaced}
+        actionButtons={actionButtons}
         onNumberClick={handleNumberClick}
         onActionClick={handleActionClick}
         onCenterClick={handleCenterClick}
