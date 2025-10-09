@@ -21,6 +21,7 @@ export interface AuthContextType {
   handleRegister: () => Promise<void>;
   walletAddress: string | null;
   isConnected: boolean;
+  setSelectedWallet: (wallet: WalletInfo | null) => void;
   // NEW: Add provider access
   getWalletProvider: () => any;
 }

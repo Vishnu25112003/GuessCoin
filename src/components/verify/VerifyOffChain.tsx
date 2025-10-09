@@ -200,7 +200,7 @@ const VerifyOffChain: React.FC = () => {
   const getRandomBlockHash = async (seedHash: string, targetBlockNumber: number) => {
     if (!web3Instance) return null;
     try {
-      let cleanSeedHash = removePrefix(seedHash);
+      const cleanSeedHash = removePrefix(seedHash);
       const byteHex = cleanSeedHash.slice(30, 32);
       const ranBlockPos = parseInt(byteHex, 16);
       let adjustedRanBlockPos = ranBlockPos;

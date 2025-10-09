@@ -36,7 +36,10 @@ interface CircularGuessRingUIProps {
   actionButtons: ActionButton[];
   isSelectedGuessPlaced: boolean; // NEW PROP
   onNumberClick: (guess: GuessData) => void;
-  onActionClick: (action: ((id: number) => void) | undefined, guessId: number) => void;
+  onActionClick: (
+    action: ((id: number) => void) | undefined,
+    guessId: number,
+  ) => void;
   onCenterClick: () => void;
   onCloseActions: () => void;
   onBackFromDetails: () => void;
@@ -100,7 +103,7 @@ const CircularGuessRingUI: React.FC<CircularGuessRingUIProps> = ({
           box-shadow: none;
           cursor: default;
         }
-        
+
         .number-ball.empty:hover {
           transform: scale(1);
           box-shadow: none;
@@ -294,15 +297,6 @@ const CircularGuessRingUI: React.FC<CircularGuessRingUIProps> = ({
               <h2 className="text-lg font-bold text-teal-300 text-center flex-1">
                 HASH DETAILS
               </h2>
-
-              <motion.button
-                onClick={onBackFromDetails}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
-              >
-                ×
-              </motion.button>
             </div>
 
             <div className="text-sm text-gray-400 mb-6 font-sans">
@@ -315,14 +309,6 @@ const CircularGuessRingUI: React.FC<CircularGuessRingUIProps> = ({
                   <span className="text-sm font-medium text-blue-300">
                     Actual Hash
                   </span>
-                  <button
-                    onClick={() =>
-                      navigator.clipboard.writeText(hashDetails.actualHash)
-                    }
-                    className="copy-button text-blue-400"
-                  >
-                    Copy
-                  </button>
                 </div>
                 <div className="text-xs text-gray-300 break-all">
                   {hashDetails.actualHash}
@@ -334,14 +320,6 @@ const CircularGuessRingUI: React.FC<CircularGuessRingUIProps> = ({
                   <span className="text-sm font-medium text-green-300">
                     Secret Key
                   </span>
-                  <button
-                    onClick={() =>
-                      navigator.clipboard.writeText(hashDetails.secretKey)
-                    }
-                    className="copy-button text-green-400"
-                  >
-                    Copy
-                  </button>
                 </div>
                 <div className="text-xs text-gray-300 break-all">
                   {hashDetails.secretKey}
@@ -353,14 +331,6 @@ const CircularGuessRingUI: React.FC<CircularGuessRingUIProps> = ({
                   <span className="text-sm font-medium text-yellow-300">
                     Dummy Hash
                   </span>
-                  <button
-                    onClick={() =>
-                      navigator.clipboard.writeText(hashDetails.dummyHash)
-                    }
-                    className="copy-button text-yellow-400"
-                  >
-                    Copy
-                  </button>
                 </div>
                 <div className="text-xs text-gray-300 break-all">
                   {hashDetails.dummyHash}

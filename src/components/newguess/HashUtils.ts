@@ -14,8 +14,20 @@ const npInfura = new Web3(
   "https://polygon-amoy.infura.io/v3/15817b570c64442b8913e5d031b6ee29",
 );
 
+// TypeScript interfaces
+interface EthereumWallet {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+}
+
+// TypeScript window.ethereum declaration
+declare global {
+  interface Window {
+    ethereum?: EthereumWallet;
+  }
+}
+
 // Global wallet variables
-export let browserWallet: any = null;
+export let browserWallet: EthereumWallet | null = null;
 export let currentAccount = "0x0";
 
 // Initialize from localStorage
@@ -113,12 +125,12 @@ export async function initializeWallet(): Promise<boolean> {
 }
 
 // Check chain ID
-export async function checkChainId(web3Instance: any): Promise<boolean> {
+export async function checkChainId(web3Instance: Web3): Promise<boolean> {
   try {
     const currentNetwork = Number(await web3Instance.eth.getChainId());
     console.log("Current Network Selected is ", currentNetwork);
     return currentNetwork === 137 || currentNetwork === 80002; // Polygon networks
-  } catch (error) {
+  } catch {
     console.error("Error in accessing chain id information");
     return false;
   }
@@ -142,26 +154,31 @@ export async function walletNetworkConfig(): Promise<[boolean, string]> {
     }
 
     return [true, "success"];
-  } catch (error: any) {
-    return [false, error.message];
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return [false, errorMessage];
   }
 }
 
 // Handle network change
 export async function handleNetworkChange(): Promise<[boolean, string]> {
   try {
+    if (!browserWallet) {
+      throw new Error("Wallet not initialized");
+    }
     await browserWallet.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: POLYGON_AMOY_TESTNET.chainId }],
     });
     return [true, "Switched to the expected network successfully"];
-  } catch (error: any) {
-    if (error.code === 4902) {
+  } catch (error: unknown) {
+    const err = error as { code?: number; message?: string };
+    if (err.code === 4902) {
       return [false, "Expected Network not found in the wallet"];
-    } else if (error.code === 4001) {
+    } else if (err.code === 4001) {
       return [false, "Network switch request was rejected"];
     } else {
-      return [false, error.message];
+      return [false, err.message || "Unknown error"];
     }
   }
 }
@@ -212,7 +229,7 @@ export async function initContractInstance(contractType: "token" | "logic") {
     const abiCode = await getABI(contractType);
     const crtAddress = await getCrtAddress(contractType);
 
-    const web3 = new Web3(browserWallet);
+    const web3 = new Web3(browserWallet as EthereumWallet);
     const chainIDStatus = await checkChainId(web3);
 
     if (!chainIDStatus) {
@@ -223,9 +240,10 @@ export async function initContractInstance(contractType: "token" | "logic") {
 
     const crtInstance = new web3.eth.Contract(abiCode, crtAddress);
     console.log(`${contractType} contract initialized:`, crtAddress);
-    return crtInstance;
-  } catch (error) {
-    console.error(`Error initializing ${contractType} contract:`, error);
+    return { contractInstance: crtInstance, web3 };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`Error initializing ${contractType} contract:`, errorMessage);
     throw error;
   }
 }
@@ -237,11 +255,4 @@ export const ZERO_HASH =
 // Initialize wallet on module load
 if (typeof window !== "undefined") {
   initializeWallet();
-}
-
-// TypeScript window.ethereum declaration
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
 }

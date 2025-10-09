@@ -454,12 +454,6 @@ const GuessPage: React.FC = () => {
 
       const paymentAmount = paidGuess ? "25000000000000000000" : "0";
 
-      const actualHashWith0x = actualHash.startsWith("0x")
-        ? actualHash
-        : "0x" + actualHash;
-      const secretHashWith0x = secretHash.startsWith("0x")
-        ? secretHash
-        : "0x" + secretHash;
       const dummyHashWith0x = dummyHash.startsWith("0x")
         ? dummyHash
         : "0x" + dummyHash;
@@ -535,7 +529,7 @@ const GuessPage: React.FC = () => {
       }
 
       console.log("Sending transaction...");
-      const result = await logicContract.methods
+      await logicContract.methods
         .submitBlockGuess(
           guessId,
           blockIncrement,

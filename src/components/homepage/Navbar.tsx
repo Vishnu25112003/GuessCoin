@@ -20,16 +20,7 @@ import {
 } from "../../config/contracts";
 import Swal from "sweetalert2";
 
-interface NavItem {
-  id: string;
-  label: string;
-  icon: string;
-}
-
 interface NavbarProps {
-  navItems: NavItem[];
-  activeNav: string;
-  setActiveNav: (nav: string) => void;
   onLogout: () => void;
 }
 
@@ -47,9 +38,6 @@ const ConnectionStatusIcon = ({ isConnected }: { isConnected: boolean }) => (
 );
 
 const Navbar: React.FC<NavbarProps> = ({
-  navItems,
-  activeNav,
-  setActiveNav,
   onLogout,
 }) => {
   const { connectedAccount, isConnected } = useAuth();
@@ -62,7 +50,7 @@ const Navbar: React.FC<NavbarProps> = ({
   const logicCrtAddress = localStorage.getItem("logicCrtAddress") || "0x";
 
   // Convert BigInt to String for JSON serialization
-  const convertBigIntToString = (obj: any): any => {
+  const convertBigIntToString = (obj: unknown): unknown => {
     if (obj === null || obj === undefined) {
       return obj;
     }
@@ -76,9 +64,9 @@ const Navbar: React.FC<NavbarProps> = ({
     }
 
     if (typeof obj === "object") {
-      const converted: any = {};
+      const converted: Record<string, unknown> = {};
       for (const key in obj) {
-        converted[key] = convertBigIntToString(obj[key]);
+        converted[key] = convertBigIntToString((obj as Record<string, unknown>)[key]);
       }
       return converted;
     }
@@ -89,8 +77,10 @@ const Navbar: React.FC<NavbarProps> = ({
   // Initialize contract instance
   const initContractInstance = async (
     contractType: "token" | "logic"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const browserWallet = (window as any).ethereum;
       if (!browserWallet) {
         throw new Error("No wallet detected");
@@ -138,11 +128,12 @@ const Navbar: React.FC<NavbarProps> = ({
 
       const crtInstance = new npWallet.eth.Contract(abiCode, crtAddress);
       return crtInstance;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to initialize contract";
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.message || "Failed to initialize contract",
+        text: errorMessage,
         background: "#1f2937",
         color: "#ffffff",
         confirmButtonColor: "#ef4444",
@@ -180,6 +171,7 @@ const Navbar: React.FC<NavbarProps> = ({
         .balanceOf(connectedAccount)
         .call();
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const web3 = new Web3((window as any).ethereum);
       const normalBalance = web3.utils.fromWei(balance, "ether");
 
@@ -273,12 +265,13 @@ const Navbar: React.FC<NavbarProps> = ({
             "rounded-xl px-8 py-3 font-bold shadow-lg hover:shadow-xl transition-all",
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error getting token balance:", error);
+      const errorMessage = error instanceof Error ? error.message : "Error getting token balance";
       Swal.fire({
         icon: "error",
         title: "Balance Check Failed",
-        text: error.message || "Error getting token balance",
+        text: errorMessage,
         background: "#1f2937",
         color: "#ffffff",
         confirmButtonColor: "#ef4444",
@@ -299,7 +292,7 @@ const Navbar: React.FC<NavbarProps> = ({
         return null;
       }
 
-      const guessEntries: any = {};
+      const guessEntries: Record<number, unknown> = {};
 
       for (let SNo = 1; SNo <= poolSize; SNo++) {
         const guessData = await deGuessInfuraInst.methods
@@ -310,7 +303,7 @@ const Navbar: React.FC<NavbarProps> = ({
       }
 
       return guessEntries;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching user data pool:", error);
       throw error;
     }
@@ -376,8 +369,9 @@ const Navbar: React.FC<NavbarProps> = ({
 
       // Count valid entries
       let validEntries = 0;
-      Object.values(guessEntries).forEach((entry: any) => {
-        if (entry.targetBlockNumber && Number(entry.targetBlockNumber) > 0) {
+      Object.values(guessEntries).forEach((entry: unknown) => {
+        const entryObj = entry as Record<string, unknown>;
+        if (entryObj.targetBlockNumber && Number(entryObj.targetBlockNumber) > 0) {
           validEntries++;
         }
       });
@@ -506,12 +500,13 @@ const Navbar: React.FC<NavbarProps> = ({
       window.dispatchEvent(
         new CustomEvent("dataSynced", { detail: guessEntries })
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error syncing data pool:", error);
+      const errorMessage = error instanceof Error ? error.message : "Error fetching user data pool";
       Swal.fire({
         icon: "error",
         title: "Sync Failed",
-        text: error.message || "Error fetching user data pool",
+        text: errorMessage,
         background: "#1f2937",
         color: "#ffffff",
         confirmButtonColor: "#ef4444",

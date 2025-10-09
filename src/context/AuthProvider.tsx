@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Web3 from 'web3';
-import { ref, set, get } from 'firebase/database';
+import { ref, set } from 'firebase/database';
 import { toast } from 'react-toastify';
 import { database } from '../config/firebase';
 import { TOKEN_CONTRACT_ADDRESS, TOKEN_CONTRACT_ABI } from '../config/contracts';
@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Detect wallets using EIP-6963
   useEffect(() => {
-    const handleAnnounceProvider = (event: any) => {
+    const handleAnnounceProvider = (event: CustomEvent) => {
       const { info, provider } = event.detail;
       setWallets((prev) => {
         if (prev.some((w) => w.uuid === info.uuid)) return prev;
@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (!storedRdns || !storedAccount || isAuth !== 'true') return;
 
-      const handleProviderAnnouncement = (event: any) => {
+      const handleProviderAnnouncement = (event: CustomEvent) => {
         const { info, provider } = event.detail;
         if (info.rdns === storedRdns) {
           const walletInfo: WalletInfo = {
@@ -123,9 +123,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setStatusMessage(`Connected to ${wallet.name}`);
       toast.success(`Connected to ${wallet.name}`);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Connection error:', error);
-      toast.error(error.message || 'Failed to connect wallet');
+      toast.error((error as Error).message || 'Failed to connect wallet');
       setStatusMessage('Connection failed');
     } finally {
       setIsLoading(false);
@@ -153,8 +153,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 params: [{ eth_accounts: {} }]
               });
               console.log('✅ MetaMask permissions revoked');
-            } catch (e: any) {
-              console.log('⚠️ MetaMask revoke failed:', e.message);
+            } catch (e: unknown) {
+              console.log('⚠️ MetaMask revoke failed:', (e as Error).message);
             }
           }
           // Coinbase Wallet
@@ -164,8 +164,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await selectedWallet.provider.disconnect();
                 console.log('✅ Coinbase Wallet disconnected');
               }
-            } catch (e: any) {
-              console.log('⚠️ Coinbase disconnect failed:', e.message);
+            } catch (e: unknown) {
+              console.log('⚠️ Coinbase disconnect failed:', (e as Error).message);
             }
           }
           // WalletConnect
@@ -175,11 +175,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await selectedWallet.provider.disconnect();
                 console.log('✅ WalletConnect disconnected');
               }
-            } catch (e: any) {
-              console.log('⚠️ WalletConnect disconnect failed:', e.message);
+            } catch (e: unknown) {
+              console.log('⚠️ WalletConnect disconnect failed:', (e as Error).message);
             }
           }
-        } catch (error) {
+        } catch {
           console.log('⚠️ Wallet disconnect attempt failed, continuing with cleanup');
         }
       }
@@ -211,7 +211,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // FIXED: Navigate to /wallet instead of /
       navigate('/wallet', { replace: true });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Disconnect error:', error);
       
       // Even on error, clear everything and navigate
@@ -228,7 +228,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [selectedWallet, navigate]);
 
-  const checkAndSwitchNetwork = useCallback(async (provider: any): Promise<boolean> => {
+  const checkAndSwitchNetwork = useCallback(async (provider: unknown): Promise<boolean> => {
     try {
       const web3 = new Web3(provider);
       const chainId = await web3.eth.getChainId();
@@ -238,15 +238,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setStatusMessage('Wrong network. Switching to Polygon Amoy...');
         
         try {
-          await provider.request({
+          await (provider as { request: (params: unknown) => Promise<unknown> }).request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: POLYGON_AMOY_TESTNET.chainId }],
           });
           toast.success('Switched to Polygon Amoy Testnet');
           return true;
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
-            await provider.request({
+        } catch (switchError: unknown) {
+          if ((switchError as { code?: number }).code === 4902) {
+            await (provider as { request: (params: unknown) => Promise<unknown> }).request({
               method: 'wallet_addEthereumChain',
               params: [{
                 chainId: POLYGON_AMOY_TESTNET.chainId,
@@ -263,7 +263,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Network switch error:', error);
       toast.error('Failed to switch network');
       return false;
@@ -291,7 +291,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const web3 = new Web3(provider);
       const tokenContract = new web3.eth.Contract(
-        TOKEN_CONTRACT_ABI as any,
+        TOKEN_CONTRACT_ABI as unknown[],
         TOKEN_CONTRACT_ADDRESS
       );
 
@@ -323,9 +323,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       toast.success('Login successful!');
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Login failed');
+      toast.error((error as Error).message || 'Login failed');
     } finally {
       setIsLoading(false);
       setStatusMessage('');
@@ -353,7 +353,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const web3 = new Web3(provider);
       const tokenContract = new web3.eth.Contract(
-        TOKEN_CONTRACT_ABI as any,
+        TOKEN_CONTRACT_ABI as unknown[],
         TOKEN_CONTRACT_ADDRESS
       );
 
@@ -369,7 +369,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       toast.info('Creating user... Please confirm the transaction.');
 
-      const receipt = await tokenContract.methods
+      await tokenContract.methods
         .createUser()
         .send({ from: connectedAccount });
 
@@ -398,12 +398,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       toast.success('Registration successful!');
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
-      if (error.code === 4001) {
+      if ((error as { code?: number }).code === 4001) {
         toast.error('Transaction rejected by user');
       } else {
-        toast.error(error.message || 'Registration failed');
+        toast.error((error as Error).message || 'Registration failed');
       }
     } finally {
       setIsLoading(false);
@@ -423,6 +423,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     handleRegister,
     walletAddress: connectedAccount,
     isConnected: !!connectedAccount && !!selectedWallet,
+    setSelectedWallet,
     getWalletProvider,
   };
 
