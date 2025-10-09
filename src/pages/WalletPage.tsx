@@ -25,7 +25,7 @@ const WalletPage: React.FC = () => {
         className="text-center mb-10"
       >
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-400">
-          GUESSCOIN NETWORK
+          DECENT GUESS NETWORK
         </h1>
         <p className="text-xl text-purple-300 mt-2">
           {connectedAccount

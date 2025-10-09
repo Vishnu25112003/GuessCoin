@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, CheckCircle, XCircle, Hash, Cpu, Zap, AlertTriangle, X, Info } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle, XCircle, Hash, Cpu, Zap, AlertTriangle, Info, Hammer } from 'lucide-react';
 import Web3 from 'web3';
-import Swal from 'sweetalert2';
 import { useAuth } from '../../context/AuthContext';
 
 // Interfaces
@@ -27,13 +26,6 @@ interface StoredGuessData {
   contractBlockNumber?: string;
 }
 
-interface MatchResult {
-  token: string;
-  hex1: { startByte: number; endByte: number; leftSkip: boolean; rightSkip: boolean };
-  hex2: { startByte: number; endByte: number; leftSkip: boolean; rightSkip: boolean };
-  encoded: string;
-}
-
 interface BlockRangeIndication {
   blockDistance: number;
   indication: 'dark green' | 'light green' | 'light red' | 'dark red';
@@ -53,6 +45,7 @@ interface AlertMessage {
   type: 'success' | 'error' | 'warning' | 'info';
   title: string;
   message: string;
+  onConfirm?: () => void;
 }
 
 const VerifyOffChain: React.FC = () => {
@@ -74,30 +67,30 @@ const VerifyOffChain: React.FC = () => {
   // Component state
   const [targetBlockHash, setTargetBlockHash] = useState('');
   const [isFetching, setIsFetching] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [web3Instance, setWeb3Instance] = useState<Web3 | null>(null);
-  const [matches, setMatches] = useState<MatchResult[]>([]);
+  const [foundTokens, setFoundTokens] = useState<string[]>([]);
   const [blockRangeIndication, setBlockRangeIndication] = useState<BlockRangeIndication | null>(null);
   const [complexCalculation, setComplexCalculation] = useState<ComplexCalculation | null>(null);
   const [showComplexCalculation, setShowComplexCalculation] = useState(false);
   const [alertMessage, setAlertMessage] = useState<AlertMessage | null>(null);
 
-  // Show alert function
-  const showAlert = (type: AlertMessage['type'], title: string, message: string) => {
-    setAlertMessage({ type, title, message });
+  const showAlert = (type: AlertMessage['type'], title: string, message: string, onConfirm?: () => void) => {
+    setAlertMessage({ type, title, message, onConfirm });
   };
 
+  const handleCloseAlert = () => {
+    if (alertMessage?.onConfirm) {
+      alertMessage.onConfirm();
+    }
+    setAlertMessage(null);
+  };
+  
   // Load guess data from localStorage
   useEffect(() => {
     const loadGuessData = () => {
       const account = connectedAccount || localStorage.getItem('currentAccount');
       if (!account) {
-        Swal.fire({
-          title: 'Error',
-          text: 'Please connect your wallet to verify a guess.',
-          icon: 'error'
-        });
-        setTimeout(() => navigate('/dashboard'), 2000);
+        showAlert('error', 'Wallet Not Connected', 'Please connect your wallet to verify a guess.', () => navigate('/dashboard'));
         return;
       }
 
@@ -152,12 +145,12 @@ const VerifyOffChain: React.FC = () => {
         setDummyHash(data.dummyHash);
         setStoredGuessData(data);
       } else {
-        Swal.fire({
-          title: 'Error',
-          text: `No verification data found for Guess ID: ${guessId}. Please submit the guess first.`,
-          icon: 'error'
-        });
-        setTimeout(() => navigate('/dashboard'), 2000);
+        showAlert(
+            'error', 
+            'Data Not Found', 
+            `No verification data found for Guess ID: ${guessId}. Please submit the guess first.`, 
+            () => navigate('/dashboard')
+        );
       }
     };
 
@@ -178,38 +171,30 @@ const VerifyOffChain: React.FC = () => {
   }, []);
 
   // Utility functions
-  const isValidChar = (hexStr: string): boolean => {
-    const cleanHex = hexStr.startsWith('0x') ? hexStr.slice(2) : hexStr;
-    return /^[0-9a-fA-F]{64}$/.test(cleanHex);
-  };
-
   const removePrefix = (hexStr: string): string => {
     return hexStr.startsWith('0x') ? hexStr.slice(2) : hexStr;
   };
 
-  const tokenize = (hexStr: string, tokenSize: number): string[] => {
-    const tokens: string[] = [];
-    for (let i = 0; i <= hexStr.length - tokenSize; i++) {
-      tokens.push(hexStr.slice(i, i + tokenSize));
-    }
-    return tokens;
-  };
+  const findMatchingTokens = (hash1: string, hash2: string, size: number): string[] => {
+    if (!hash1 || !hash2 || size <= 0) return [];
+    
+    const cleanHash1 = removePrefix(hash1.toLowerCase());
+    const cleanHash2 = removePrefix(hash2.toLowerCase());
 
-  const encodeMatch = (hitHex1: any, hitHex2: any): string => {
-    if (!web3Instance) return '';
-    return web3Instance.eth.abi.encodeParameters(
-      ['uint8', 'uint8', 'bool', 'bool', 'uint8', 'uint8', 'bool', 'bool'],
-      [
-        hitHex1.startByte,
-        hitHex1.endByte,
-        hitHex1.leftSkip,
-        hitHex1.rightSkip,
-        hitHex2.startByte,
-        hitHex2.endByte,
-        hitHex2.leftSkip,
-        hitHex2.rightSkip,
-      ]
-    );
+    const userGuessTokens = new Set<string>();
+    for (let i = 0; i <= cleanHash1.length - size; i++) {
+        userGuessTokens.add(cleanHash1.substring(i, i + size));
+    }
+
+    const foundMatches = new Set<string>();
+    for (let i = 0; i <= cleanHash2.length - size; i++) {
+        const fetchedToken = cleanHash2.substring(i, i + size);
+        if (userGuessTokens.has(fetchedToken)) {
+            foundMatches.add(fetchedToken);
+        }
+    }
+    
+    return Array.from(foundMatches);
   };
 
   const getRandomBlockHash = async (seedHash: string, targetBlockNumber: number) => {
@@ -262,38 +247,26 @@ const VerifyOffChain: React.FC = () => {
     return { blockDistance, indication, color };
   };
 
-  // MAIN FUNCTION: Fetch Target Hash with Integrated Prefix Comparison
-  const handleFetchTargetBlockHash = async () => {
+  const handleFetchAndVerify = async () => {
     if (!web3Instance) {
-      Swal.fire({
-        title: 'Error',
-        text: 'Web3 not initialized',
-        icon: 'error'
-      });
+      showAlert('error', 'Initialization Error', 'Web3 not initialized.');
       return;
     }
 
     if (!targetBlockCount) {
-      Swal.fire({
-        title: 'Warning',
-        text: 'No generated target block available. Please submit a guess first.',
-        icon: 'warning'
-      });
+      showAlert('warning', 'Missing Information', 'No generated target block available. Please submit a guess first.');
       return;
     }
 
     setIsFetching(true);
+    setFoundTokens([]); // Reset previous results
 
     try {
       const currentBlockNumber = await web3Instance.eth.getBlockNumber();
       const blockDistance = Number(currentBlockNumber) - targetBlockCount;
 
       if (blockDistance < 0) {
-        Swal.fire({
-          title: 'Warning',
-          text: "Block couldn't be mined yet. Please wait for the block to be confirmed.",
-          icon: 'warning'
-        });
+        showAlert('warning', 'Block Not Mined', "The target block hasn't been mined yet. Please wait for it to be confirmed.");
         setIsFetching(false);
         return;
       }
@@ -302,11 +275,7 @@ const VerifyOffChain: React.FC = () => {
 
       if (!complex) {
         if (blockDistance > 255) {
-          Swal.fire({
-            title: 'Error',
-            text: `Block distance: ${blockDistance} blocks. Must be within 255 blocks.`,
-            icon: 'error'
-          });
+          showAlert('error', 'Block Distance Exceeded', `Block distance is ${blockDistance} blocks. It must be within 255 blocks for standard mode.`);
           setIsFetching(false);
           return;
         }
@@ -315,43 +284,27 @@ const VerifyOffChain: React.FC = () => {
         if (block && block.hash) {
           minedBlockHash = block.hash as string;
         } else {
-          Swal.fire({
-            title: 'Error',
-            text: 'Unable to retrieve block hash. Please try again.',
-            icon: 'error'
-          });
+          showAlert('error', 'Fetch Error', 'Unable to retrieve block hash. Please try again.');
           setIsFetching(false);
           return;
         }
       } else {
         if (blockDistance > 128) {
-          Swal.fire({
-            title: 'Error',
-            text: `Block distance: ${blockDistance} blocks. Must be within 128 blocks for complex mode.`,
-            icon: 'error'
-          });
+          showAlert('error', 'Block Distance Exceeded', `Block distance is ${blockDistance} blocks. It must be within 128 blocks for complex mode.`);
           setIsFetching(false);
           return;
         }
 
         const targetBlock = await web3Instance.eth.getBlock(targetBlockCount);
         if (!targetBlock || !targetBlock.hash) {
-          Swal.fire({
-            title: 'Error',
-            text: 'Unable to retrieve target block hash. Please try again.',
-            icon: 'error'
-          });
+          showAlert('error', 'Fetch Error', 'Unable to retrieve target block hash. Please try again.');
           setIsFetching(false);
           return;
         }
 
         const randomBlockData = await getRandomBlockHash(targetBlock.hash as string, targetBlockCount);
         if (!randomBlockData) {
-          Swal.fire({
-            title: 'Error',
-            text: 'Unable to retrieve random block hash. Please try again.',
-            icon: 'error'
-          });
+          showAlert('error', 'Fetch Error', 'Unable to retrieve random block hash. Please try again.');
           setIsFetching(false);
           return;
         }
@@ -371,154 +324,59 @@ const VerifyOffChain: React.FC = () => {
       setBlockRangeIndication(calculateBlockRangeIndication(blockDistance, complex));
       setTargetBlockHash(minedBlockHash);
 
-      // PREFIX COMPARISON LOGIC
-      const cleanActualHash = removePrefix(actualHash);
-      const cleanMinedHash = removePrefix(minedBlockHash);
+      // Full hash comparison logic
+      const matchedTokens = findMatchingTokens(actualHash, minedBlockHash, tokenSize);
+      setFoundTokens(matchedTokens);
 
-      const actualHashPrefix = cleanActualHash.substring(0, tokenSize);
-      const minedHashPrefix = cleanMinedHash.substring(0, tokenSize);
-
-      console.log('Comparing prefixes:');
-      console.log('Actual Hash Prefix:', actualHashPrefix);
-      console.log('Mined Hash Prefix:', minedHashPrefix);
-
-      if (actualHashPrefix.toLowerCase() === minedHashPrefix.toLowerCase()) {
-        Swal.fire({
-          title: 'Success!',
-          text: 'Hash prefix match found! Proceeding to on-chain verification.',
-          icon: 'success',
-          timer: 2000
-        });
-
-        navigate(`/verify-onchain/${guessId}`, {
-          state: {
-            actualHash: cleanActualHash,
-            fetchedHash: cleanMinedHash,
-            tokenSize,
-            targetBlockNumber: targetBlockCount,
-            storedGuessData: storedGuessData,
-            blockDistance,
-            complex
+      if (matchedTokens.length > 0) {
+        showAlert(
+          'success',
+          `${matchedTokens.length} Match(es) Found!`,
+          `Matching combinations found: (${matchedTokens.join(', ')}). You will be redirected to the On-Chain page.`,
+          () => {
+            navigate(`/verify-onchain/${guessId}`, {
+              state: {
+                actualHash: removePrefix(actualHash),
+                fetchedHash: removePrefix(minedBlockHash),
+                tokenSize,
+                targetBlockNumber: targetBlockCount,
+                storedGuessData: storedGuessData,
+                blockDistance,
+                complex,
+                matches: matchedTokens
+              }
+            });
           }
-        });
+        );
       } else {
-        Swal.fire({
-          title: 'Verification Failed',
-          html: `
-            <div style="text-align: left;">
-              <p><strong>Hash prefix mismatch detected!</strong></p>
-              <p>Expected prefix: <code>${actualHashPrefix}</code></p>
-              <p>Received prefix: <code>${minedHashPrefix}</code></p>
-              <p>Token Size: ${tokenSize} characters</p>
-            </div>
-          `,
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-
-        showAlert('error', 'No Prefix Match', `Expected: ${actualHashPrefix}, Got: ${minedHashPrefix}`);
+        showAlert('info', 'No Matches Found', 'No matching patterns were found between your guess and the fetched hash.');
       }
 
     } catch (error) {
       console.error('Error fetching target block hash:', error);
-      Swal.fire({
-        title: 'Error',
-        text: 'An error occurred while fetching the target block hash.',
-        icon: 'error'
-      });
+      showAlert('error', 'Fetch Error', 'An error occurred while fetching the target block hash.');
     } finally {
       setIsFetching(false);
-    }
-  };
-
-  const compareHexValues = async (hex1: string, hex2: string, size: number): Promise<MatchResult[]> => {
-    const cleanHex1 = removePrefix(hex1.toLowerCase());
-    const cleanHex2 = removePrefix(hex2.toLowerCase());
-    if (!isValidChar(cleanHex1) || !isValidChar(cleanHex2)) return [];
-    if (size < 3 || size > 64) return [];
-    const tokens1 = tokenize(cleanHex1, size);
-    const tokens2 = tokenize(cleanHex2, size);
-    const matches: MatchResult[] = [];
-    tokens1.forEach((token1, i) => {
-      tokens2.forEach((token2, j) => {
-        if (token1 === token2) {
-          matches.push({
-            token: token1,
-            hex1: {
-              startByte: Math.floor(i / 2),
-              endByte: Math.floor((i + size - 1) / 2),
-              leftSkip: i % 2 !== 0,
-              rightSkip: (i + size) % 2 !== 0,
-            },
-            hex2: {
-              startByte: Math.floor(j / 2),
-              endByte: Math.floor((j + size - 1) / 2),
-              leftSkip: j % 2 !== 0,
-              rightSkip: (j + size) % 2 !== 0,
-            },
-            encoded: encodeMatch(
-              {
-                startByte: Math.floor(i / 2),
-                endByte: Math.floor((i + size - 1) / 2),
-                leftSkip: i % 2 !== 0,
-                rightSkip: (i + size) % 2 !== 0,
-              },
-              {
-                startByte: Math.floor(j / 2),
-                endByte: Math.floor((j + size - 1) / 2),
-                leftSkip: j % 2 !== 0,
-                rightSkip: (j + size) % 2 !== 0,
-              }
-            ),
-          });
-        }
-      });
-    });
-    return matches;
-  };
-
-  const handleVerifyOffChain = async () => {
-    if (!targetBlockHash) {
-      Swal.fire({
-        title: 'Warning',
-        text: 'Please fetch the target block hash first before verifying.',
-        icon: 'warning'
-      });
-      return;
-    }
-
-    setIsVerifying(true);
-    try {
-      const foundMatches = await compareHexValues(actualHash, targetBlockHash, tokenSize);
-      setMatches(foundMatches);
-      if (foundMatches.length > 0) {
-        showAlert('success', 'Verification Complete', `Found ${foundMatches.length} pattern match(es)!`);
-      } else {
-        showAlert('info', 'No Matches', 'No pattern matches found between the hashes.');
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-      showAlert('error', 'Verification Failed', 'An error occurred during verification.');
-    } finally {
-      setIsVerifying(false);
     }
   };
 
   const handleBack = () => navigate('/dashboard');
 
   const getAlertStyles = (type: AlertMessage['type']) => {
-    const IconComponent = type === 'success' ? CheckCircle : type === 'error' ? XCircle : type === 'warning' ? AlertTriangle : Hash;
+    const IconComponent = type === 'success' ? CheckCircle : type === 'error' ? XCircle : type === 'warning' ? AlertTriangle : Info;
     const bgClass = type === 'success' ? 'from-emerald-900/40 to-green-900/40' : type === 'error' ? 'from-red-900/40 to-rose-900/40' : type === 'warning' ? 'from-yellow-900/40 to-orange-900/40' : 'from-blue-900/40 to-indigo-900/40';
     const borderClass = type === 'success' ? 'border-emerald-500/50' : type === 'error' ? 'border-red-500/50' : type === 'warning' ? 'border-yellow-500/50' : 'border-blue-500/50';
     const titleColorClass = type === 'success' ? 'text-emerald-300' : type === 'error' ? 'text-red-300' : type === 'warning' ? 'text-yellow-300' : 'text-blue-300';
     const buttonClass = type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : type === 'error' ? 'bg-red-500 hover:bg-red-600' : type === 'warning' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-500 hover:bg-blue-600';
-    
+    const iconBgClass = type === 'success' ? 'bg-emerald-500/20' : type === 'error' ? 'bg-red-500/20' : type === 'warning' ? 'bg-yellow-500/20' : 'bg-blue-500/20';
+
     return { 
       IconComponent, 
       bgClass, 
       borderClass, 
       titleColorClass,
-      buttonClass 
+      buttonClass,
+      iconBgClass
     };
   };
 
@@ -526,9 +384,8 @@ const VerifyOffChain: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 font-mono"
+      className="min-h-screen bg-slate-950 p-4 font-mono"
     >
-      {/* Animated background elements */}
       <div className="gc-geometric-bg" aria-hidden="true"></div>
       <div className="gc-dots-pattern" aria-hidden="true"></div>
       <div className="gc-floating-elements" aria-hidden="true">
@@ -537,53 +394,52 @@ const VerifyOffChain: React.FC = () => {
         <div className="gc-float-triangle"></div>
       </div>
 
-      {/* Alert Modal */}
       <AnimatePresence>
         {alertMessage && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setAlertMessage(null)}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={handleCloseAlert}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className={`bg-gradient-to-br ${getAlertStyles(alertMessage.type).bgClass} backdrop-blur-xl rounded-lg p-6 max-w-md w-full border ${getAlertStyles(alertMessage.type).borderClass} shadow-2xl`}
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className={`relative bg-slate-800/80 backdrop-blur-xl rounded-2xl p-8 pt-12 max-w-md w-full border ${getAlertStyles(alertMessage.type).borderClass} shadow-2xl text-center`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center">
-                  {React.createElement(getAlertStyles(alertMessage.type).IconComponent, {
-                    size: 24,
-                    className: `${getAlertStyles(alertMessage.type).titleColorClass} mr-3`
-                  })}
-                  <h3 className={`text-lg font-bold ${getAlertStyles(alertMessage.type).titleColorClass}`}>
-                    {alertMessage.title}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setAlertMessage(null)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-200 mb-6">{alertMessage.message}</p>
-              <button
-                onClick={() => setAlertMessage(null)}
-                className={`px-6 py-2 rounded-lg font-semibold ${getAlertStyles(alertMessage.type).buttonClass} text-white transition-colors w-full`}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1, rotate: 10 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 15 }}
+                className={`absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full flex items-center justify-center border-4 ${getAlertStyles(alertMessage.type).borderClass} ${getAlertStyles(alertMessage.type).iconBgClass}`}
+              >
+                {React.createElement(getAlertStyles(alertMessage.type).IconComponent, {
+                  size: 40,
+                  className: `${getAlertStyles(alertMessage.type).titleColorClass}`
+                })}
+              </motion.div>
+
+              <h3 className={`text-2xl font-bold ${getAlertStyles(alertMessage.type).titleColorClass} mb-3`}>
+                {alertMessage.title}
+              </h3>
+              <p className="text-gray-300 mb-8 whitespace-pre-wrap">{alertMessage.message}</p>
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCloseAlert}
+                className={`px-8 py-3 rounded-lg font-semibold ${getAlertStyles(alertMessage.type).buttonClass} text-white transition-all w-full shadow-lg hover:shadow-xl`}
               >
                 OK
-              </button>
+              </motion.button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header */}
       <div className="max-w-7xl mx-auto mb-6 relative z-10">
         <button
           onClick={handleBack}
@@ -595,12 +451,10 @@ const VerifyOffChain: React.FC = () => {
         <h1 className="text-3xl font-bold text-white mb-2">
           Off-Chain Hash Verification
         </h1>
-        <p className="text-gray-300">Verify your guess against the blockchain</p>
+        <p className="text-gray-300">Verify your guess against the blockchain hash</p>
       </div>
 
-      {/* Main Content - NEW LAYOUT */}
       <div className="max-w-7xl mx-auto relative z-10">
-        {/* Top Row: Guess Info (Full Width) */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -629,21 +483,18 @@ const VerifyOffChain: React.FC = () => {
               <p className="text-gray-400 text-sm mb-1">Type</p>
               <div className="flex justify-center gap-2">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${paidGuess ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300'}`}>
-                  {paidGuess ? '💰' : '🆓'}
+                  {paidGuess ? '💰 Paid' : '🆓 Free'}
                 </span>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${complex ? 'bg-red-500/20 text-red-300' : 'bg-indigo-500/20 text-indigo-300'}`}>
-                  {complex ? '🔥' : '⚡'}
+                  {complex ? '🔥 Complex' : '⚡ Standard'}
                 </span>
               </div>
             </div>
           </div>
         </motion.section>
 
-        {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column (2/3 width) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Action Buttons */}
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -652,13 +503,13 @@ const VerifyOffChain: React.FC = () => {
             >
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <Zap size={20} className="text-yellow-400" />
-                Verification Actions
+                Verification Action
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex justify-center">
                 <button
-                  onClick={handleFetchTargetBlockHash}
+                  onClick={handleFetchAndVerify}
                   disabled={isFetching || !web3Instance}
-                  className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-lg"
+                  className="w-full md:w-2/3 flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-lg"
                 >
                   {isFetching ? (
                     <>
@@ -668,31 +519,13 @@ const VerifyOffChain: React.FC = () => {
                   ) : (
                     <>
                       <Search size={24} />
-                      Fetch Target Hash
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleVerifyOffChain}
-                  disabled={isVerifying || !targetBlockHash}
-                  className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg text-lg"
-                >
-                  {isVerifying ? (
-                    <>
-                      <CheckCircle className="animate-spin" size={24} />
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle size={24} />
-                      Verify Patterns
+                      Fetch & Verify Hash
                     </>
                   )}
                 </button>
               </div>
             </motion.section>
 
-            {/* Mined Block Hash Result */}
             {targetBlockHash && (
               <motion.section
                 initial={{ opacity: 0, y: 20 }}
@@ -701,13 +534,12 @@ const VerifyOffChain: React.FC = () => {
               >
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                   <Search size={20} className="text-blue-400" />
-                  Fetched Target Block Hash
+                  Fetched Block Hash
                 </h2>
                 <div className="bg-black/30 p-4 rounded-lg font-mono text-sm text-gray-200 overflow-x-auto border border-blue-500/30">
                   {targetBlockHash}
                 </div>
                 
-                {/* Block Range Indication */}
                 {blockRangeIndication && (
                   <div className="mt-4 p-4 rounded-lg border" style={{ 
                     backgroundColor: `${blockRangeIndication.color}10`,
@@ -734,7 +566,6 @@ const VerifyOffChain: React.FC = () => {
               </motion.section>
             )}
 
-            {/* Complex Calculation Details */}
             {showComplexCalculation && complexCalculation && (
               <motion.section
                 initial={{ opacity: 0, y: 20 }}
@@ -766,22 +597,21 @@ const VerifyOffChain: React.FC = () => {
               </motion.section>
             )}
 
-            {/* Matches Found */}
-            {matches.length > 0 && (
+            {foundTokens.length > 0 && (
               <motion.section
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-xl"
               >
                 <h2 className="text-xl font-semibold text-white mb-4">
-                  Pattern Matches Found ({matches.length})
+                  {`Match Results: ${foundTokens.length} Found`}
                 </h2>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {matches.map((match, index) => (
-                    <div key={index} className="bg-black/30 p-4 rounded-lg border border-green-500/30">
-                      <p className="text-green-300 font-mono text-sm mb-2">✓ Token: {match.token}</p>
-                      <p className="text-gray-400 font-mono text-xs break-all">
-                        Encoded: {match.encoded}
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  {foundTokens.map((token, index) => (
+                    <div key={index} className="flex items-center gap-3 bg-black/30 p-3 rounded-lg border border-green-500/30">
+                      <Hammer size={20} className="text-green-400 flex-shrink-0" />
+                      <p className="text-green-300 font-mono text-lg break-all">
+                        {token}
                       </p>
                     </div>
                   ))}
@@ -790,7 +620,6 @@ const VerifyOffChain: React.FC = () => {
             )}
           </div>
 
-          {/* Right Column (1/3 width) - Hash Details */}
           <div className="space-y-6">
             <motion.section
               initial={{ opacity: 0, y: 20 }}
@@ -800,11 +629,11 @@ const VerifyOffChain: React.FC = () => {
             >
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <Hash size={20} className="text-purple-400" />
-                Hash Details
+                Your Guess Hash Details
               </h2>
               <div className="space-y-4">
                 <div>
-                  <p className="text-gray-400 text-xs mb-2">Actual Hash</p>
+                  <p className="text-gray-400 text-xs mb-2">Actual Hash (Your Guess)</p>
                   <div className="bg-black/30 p-3 rounded-lg font-mono text-xs text-gray-200 overflow-x-auto break-all">
                     {actualHash || 'N/A'}
                   </div>
@@ -831,3 +660,4 @@ const VerifyOffChain: React.FC = () => {
 };
 
 export default VerifyOffChain;
+

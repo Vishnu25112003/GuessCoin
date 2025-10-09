@@ -82,7 +82,7 @@ const RegisterLogin: React.FC = () => {
           </span>
         </h1>
         <p className={`${gameStyles.subtitle} mb-8`}>
-          ACCESS GRANTED: Ready to join the GuessCoin network
+          ACCESS GRANTED: Ready to join the DECENT GUESS network
         </p>
 
         {/* Action Buttons */}

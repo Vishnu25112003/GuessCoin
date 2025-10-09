@@ -48,7 +48,7 @@ const WalletContainer: React.FC = () => {
         `}</style>
 
         <h2 className="text-3xl font-bold text-center mb-6 text-white bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
-          GUESSCOIN TERMINAL
+          DECENT TERMINAL
         </h2>
 
         {connectedAccount ? (

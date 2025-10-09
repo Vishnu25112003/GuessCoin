@@ -1,5 +1,5 @@
 // src/components/layout/Navbar.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   RefreshCcw,
@@ -10,7 +10,6 @@ import {
   Menu,
   X,
   Check,
-  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import Web3 from "web3";
@@ -550,27 +549,10 @@ const Navbar: React.FC<NavbarProps> = ({
                 <Wallet className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">GuessCoin</h1>
+                <h1 className="text-xl font-bold text-white">DecentGuessCoin</h1>
                 <ConnectionStatusIcon isConnected={isConnected} />
               </div>
-            </div>
-
-            {/* Navigation Items */}
-            <div className="flex items-center gap-2">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveNav(item.id)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                    activeNav === item.id
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+            </div>    
 
             {/* Wallet & Action Buttons */}
             <div className="flex items-center gap-3">
@@ -700,23 +682,6 @@ const Navbar: React.FC<NavbarProps> = ({
               className="border-t border-gray-700 bg-gray-900 overflow-hidden"
             >
               <div className="px-4 py-4 space-y-2">
-                {/* Navigation Items */}
-                {navItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveNav(item.id);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
-                      activeNav === item.id
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-300 hover:bg-gray-800"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
 
                 {/* Action Buttons */}
                 <div className="pt-2 space-y-2 border-t border-gray-800">
