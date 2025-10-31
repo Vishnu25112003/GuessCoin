@@ -1,0 +1,417 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_creator",
+				"type": "address"
+			},
+			{
+				"internalType": "uint8",
+				"name": "_poolSize",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_paidBetAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint16",
+				"name": "_freeRewardAmount",
+				"type": "uint16"
+			},
+			{
+				"internalType": "uint16",
+				"name": "_paidRewardAmount",
+				"type": "uint16"
+			},
+			{
+				"internalType": "address",
+				"name": "_guessTokenAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "_userAddress",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint8",
+				"name": "_SNo",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "_guessBlockNumber",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "_tokenSize",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "_paidGuess",
+				"type": "bool"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "_complex",
+				"type": "bool"
+			}
+		],
+		"name": "guessSubmitted",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "_userAddress",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint8",
+				"name": "_SNo",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "_rewardsTotal",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "enum GuessLogic.guessEntryStatus",
+				"name": "_targetStatus",
+				"type": "uint8"
+			}
+		],
+		"name": "guessVerified",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "_userAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "updatedStatus",
+				"type": "bool"
+			}
+		],
+		"name": "updatedPoolData",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "_tokenSize",
+				"type": "uint8"
+			},
+			{
+				"components": [
+					{
+						"internalType": "uint8",
+						"name": "startByte",
+						"type": "uint8"
+					},
+					{
+						"internalType": "uint8",
+						"name": "endByte",
+						"type": "uint8"
+					},
+					{
+						"internalType": "bool",
+						"name": "leftSkip",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "rightSkip",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct GuessLogic.indvBytePos",
+				"name": "bytePos",
+				"type": "tuple"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "_hash",
+				"type": "bytes32"
+			}
+		],
+		"name": "bytes32ToHexString",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "sNo",
+				"type": "uint8"
+			}
+		],
+		"name": "calcRandHash",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "clearPool",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAllGuessEntries",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "targetBlockNumber",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes32",
+						"name": "userHashGuess",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "uint8",
+						"name": "tokenSize",
+						"type": "uint8"
+					},
+					{
+						"internalType": "bool",
+						"name": "paidGuess",
+						"type": "bool"
+					},
+					{
+						"internalType": "enum GuessLogic.guessEntryStatus",
+						"name": "targetVerified",
+						"type": "uint8"
+					},
+					{
+						"internalType": "bool",
+						"name": "complex",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct GuessLogic.guessSingleEntry[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "_SNo",
+				"type": "uint8"
+			}
+		],
+		"name": "getGuessEntry",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "targetBlockNumber",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bytes32",
+						"name": "userHashGuess",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "uint8",
+						"name": "tokenSize",
+						"type": "uint8"
+					},
+					{
+						"internalType": "bool",
+						"name": "paidGuess",
+						"type": "bool"
+					},
+					{
+						"internalType": "enum GuessLogic.guessEntryStatus",
+						"name": "targetVerified",
+						"type": "uint8"
+					},
+					{
+						"internalType": "bool",
+						"name": "complex",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct GuessLogic.guessSingleEntry",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "sNo",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "actualHashPlaced",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes",
+				"name": "_encyData",
+				"type": "bytes"
+			}
+		],
+		"name": "processSearchData",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "_SNo",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint16",
+				"name": "_blockIncCount",
+				"type": "uint16"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "_unrevealedGuess",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint8",
+				"name": "_tokenSize",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_paymentPaidBet",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "_overWrite",
+				"type": "bool"
+			},
+			{
+				"internalType": "bool",
+				"name": "_complex",
+				"type": "bool"
+			}
+		],
+		"name": "submitBlockGuess",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "syncPoolData",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "_SNo",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "actualHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "secretKey",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes[2]",
+				"name": "encyData",
+				"type": "bytes[2]"
+			}
+		],
+		"name": "verifyBlockGuess",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
