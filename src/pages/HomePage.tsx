@@ -128,7 +128,7 @@ export default function HomePage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <img src="https://i.pravatar.cc/80" className="w-16 h-16 rounded-full ring-2 ring-sky-100" />
+            <img src="https://www.citypng.com/public/uploads/preview/hd-man-user-illustration-icon-transparent-png-701751694974843ybexneueic.png" className="w-16 h-16 rounded-full ring-2 ring-sky-100" />
             <div>
               <p className="text-slate-900 font-semibold text-lg">Welcome</p>
               <p className="text-slate-600 break-all text-sm">{wallet ?? 'Not connected'}</p>

@@ -70,7 +70,7 @@ export default function SeedDataPage() {
 
   return (
     <div>
-      <Header trail={[{ label: 'Home', to: '/' }, { label: 'Get Seed Data' }]} onLogout={() => { localStorage.clear(); window.location.href = '/session'; }} />
+      <Header trail={[{ label: 'Home', to: '/home' }, { label: 'Get Seed Data' }]} onLogout={() => { localStorage.clear(); window.location.href = '/session'; }} />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h2 className="text-xl font-semibold mb-4 text-slate-800">Guess Info</h2>
         {guess && (
@@ -96,7 +96,7 @@ export default function SeedDataPage() {
 
         <div className="mt-6 flex justify-end gap-2">
           <button onClick={verifyOffChain} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded">Verify Off Chain</button>
-          <a href="/" className="px-4 py-2 border rounded hover:bg-slate-50">Back</a>
+          <a href="/home" className="px-4 py-2 border rounded hover:bg-slate-50">Back</a>
         </div>
       </div>
     </div>
