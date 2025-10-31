@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
 import Swal from 'sweetalert2';
-import { genHashData, getUnrevealedHash, isValidChar, removePrefix, randomBytes32 } from '../services/web3';
+import { genHashData, getUnrevealedHash, isValidChar, removePrefix, randomBytes32, npInfura } from '../services/web3';
 import Web3 from 'web3';
 import { getTokenContract, getTokenContractReadonly } from '../services/eth';
 import { isGasFeeError, sendWithFees } from '../services/tx';
@@ -142,10 +142,21 @@ export default function NewGuessPage() {
     const account = localStorage.getItem('currentAccount');
     if (!account) { Swal.fire('Not logged in', 'No wallet account found', 'error'); return; }
 
-    // Determine paid amount like HTML/JS: 25 tokens -> 25e18
+  // Determine paid amount like HTML/JS: 25 tokens -> 25e18
     const provider: any = (window as any).selectedWallet || (window as any).ethereum;
     const web3 = new Web3(provider);
     const amountWei = paidGuess === 'true' ? web3.utils.toWei('25', 'ether') : '0';
+
+    // If paid guess, ensure user has at least 25 GUESS before proceeding
+    if (paidGuess === 'true') {
+      const tokenRO = getTokenContractReadonly();
+      const bal = await tokenRO.methods.balanceOf(account).call({ from: account }, 'latest');
+      if (BigInt(String(bal)) < BigInt(String(amountWei))) {
+        const pretty = npInfura.utils.fromWei(String(bal), 'ether');
+        await Swal.fire('Insufficient GUESS balance', `You need at least 25 GUESS to submit a paid guess. Current balance: ${pretty}`, 'error');
+        return;
+      }
+    }
 
     // If paid guess, ensure allowance for Logic contract
     if (paidGuess === 'true') {

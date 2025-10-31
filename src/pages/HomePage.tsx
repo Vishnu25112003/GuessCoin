@@ -11,6 +11,7 @@ import { sendWithFees, isGasFeeError } from '../services/tx';
 export default function HomePage() {
   const [wallet] = useState<string | null>(localStorage.getItem('currentAccount'));
   const [guesses, setGuesses] = useState<GuessEntry[]>([]);
+  const [currentBlock, setCurrentBlock] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const logic = localStorage.getItem('logicCrtAddress');
@@ -42,6 +43,21 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    async function tick() {
+      try {
+        const bn = await npInfura.eth.getBlockNumber();
+        if (alive) setCurrentBlock(Number(bn));
+      } catch {
+        // ignore
+      }
+    }
+    tick();
+    const id = setInterval(tick, 8000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
 
   const [syncing, setSyncing] = useState(false);
   const [balLoading, setBalLoading] = useState(false);
@@ -118,13 +134,16 @@ export default function HomePage() {
               <p className="text-slate-600 break-all text-sm">{wallet ?? 'Not connected'}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={onSyncPool} disabled={syncing} className="px-3 py-2 rounded border hover:bg-slate-50 disabled:opacity-50">
               {syncing ? 'Syncing...' : 'Sync Pool Data'}
             </button>
             <button onClick={onGetBalance} disabled={balLoading} className="px-3 py-2 rounded border hover:bg-slate-50 disabled:opacity-50">
               {balLoading ? 'Checking...' : 'Get Balance'}
             </button>
+            <span className="px-3 py-2 rounded border bg-slate-50 text-slate-700 select-none">
+              Current Block: {currentBlock ?? '—'}
+            </span>
           </div>
         </div>
 
@@ -138,9 +157,29 @@ export default function HomePage() {
             localStorage.setItem('singleGuess', JSON.stringify(g));
             window.location.href = '/seed';
           }}
-          onValidity={(g) => {
-            localStorage.setItem('singleGuess', JSON.stringify(g));
-            Swal.fire('Check validity from toolbar in React build', '', 'info');
+          onValidity={async (g) => {
+            try {
+              const target = Number(g.targetBlockNumber);
+              const head = Number(await npInfura.eth.getBlockNumber());
+              if (!Number.isFinite(target) || target <= 0) { await Swal.fire('No target block', 'This row has no target block number', 'info'); return; }
+              if (head < target) {
+                await Swal.fire('Block not reached', `Current block: ${head}. Target: ${target}.`, 'info');
+                return;
+              }
+              const dist = head - target;
+              if (dist > 128) {
+                await Swal.fire('Too long block distance', `Distance: ${dist} (>128).`, 'warning');
+                return;
+              }
+              const blk = await npInfura.eth.getBlock(target);
+              if (blk?.hash) {
+                await Swal.fire('Block reached', `Block ${target} mined`, 'success');
+              } else {
+                await Swal.fire("Couldn't be mined", 'Block not available yet. Try again shortly.', 'warning');
+              }
+            } catch (e: any) {
+              await Swal.fire('Error', e?.message || 'Unable to check validity', 'error');
+            }
           }}
         />
       </div>
