@@ -1,0 +1,2 @@
+export const INFURA_HTTP_URL = 'https://polygon-amoy.infura.io/v3/15817b570c64442b8913e5d031b6ee29';
+export const TOKEN_CONTRACT_ADDRESS = '0x3A3DF2F81F7aE51E9fBA8E3A13cB2F7e37eeE60E';
