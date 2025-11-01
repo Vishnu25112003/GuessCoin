@@ -42,7 +42,7 @@ export function encodeMatch(
 export function safeKeccak(value: string): string {
   try {
     return npInfura.utils.keccak256(value);
-  } catch (_e) {
+  } catch {
     // Fallback: hash UTF-8 bytes explicitly
     const hex = npInfura.utils.utf8ToHex(value ?? '');
     return npInfura.utils.keccak256(hex);
@@ -77,8 +77,8 @@ export function getUnrevealedHash(actualHash: string, secretKey: string): string
 
 export function randomBytes32(): string {
   const bytes = new Uint8Array(32);
-  if (typeof globalThis !== 'undefined' && (globalThis as any).crypto?.getRandomValues) {
-    (globalThis as any).crypto.getRandomValues(bytes);
+  if (typeof globalThis !== 'undefined' && (globalThis as { crypto?: { getRandomValues?: (array: Uint8Array) => void } }).crypto?.getRandomValues) {
+    (globalThis as { crypto: { getRandomValues: (array: Uint8Array) => void } }).crypto.getRandomValues(bytes);
   } else {
     for (let i = 0; i < 32; i++) bytes[i] = Math.floor(Math.random() * 256);
   }
@@ -90,7 +90,7 @@ export function randomBytes32(): string {
 export async function getRandomBlockHash(seedHash: string, targetBlockNumber: number): Promise<
   [hash: string | null, byteHex: string, adjustedRanBlockPos: number, randomBlockNumber: number]
 > {
-  let _seedHash = removePrefix(seedHash);
+  const _seedHash = removePrefix(seedHash);
   const byteHex = _seedHash.slice(30, 32);
   let ranBlockPos = parseInt(byteHex, 16);
   if (ranBlockPos > 127) ranBlockPos = Math.floor(ranBlockPos / 2);

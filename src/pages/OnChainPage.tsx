@@ -5,6 +5,7 @@ import { getLogicContract } from '../services/eth';
 import { npInfura, getRandomBlockHash } from '../services/web3';
 import { sendWithFees, isGasFeeError } from '../services/tx';
 import { useEffect, useState } from 'react';
+import type { LocalStorageRTDB, TransactionReceipt, WalletProvider } from '../types';
 
 export default function OnChainPage() {
   const guess = (() => {
@@ -41,7 +42,7 @@ export default function OnChainPage() {
         setComplexCalc({});
       }
     })();
-  }, []);
+  }, [guess?.complex, guess?.targetBlockNumber]);
 
   async function verifyOnChain() {
     try {
@@ -52,9 +53,9 @@ export default function OnChainPage() {
       const code1 = selected[0]?.encoded;
       const code2 = selected[1]?.encoded || '0x';
 
-      const provider: any = (window as any).selectedWallet || (window as any).ethereum;
+      const provider = (window as Window & { selectedWallet?: WalletProvider; ethereum?: WalletProvider }).selectedWallet || (window as Window & { ethereum?: WalletProvider }).ethereum;
       if (!provider) { Swal.fire('No wallet provider', 'Open MetaMask and retry', 'error'); return; }
-      const web3 = new Web3(provider);
+      const web3 = new Web3(provider as never);
       const logic = getLogicContract(web3, logicAddr);
 
       await sendWithFees(
@@ -63,11 +64,11 @@ export default function OnChainPage() {
         { from: account },
         {
           onHash: () => { Swal.fire('Transaction sent', "Don't refresh. Waiting for confirmation...", 'info'); },
-          onReceipt: (receipt: any) => {
+          onReceipt: (receipt: TransactionReceipt) => {
             if (!receipt?.status) throw new Error('Verification failed');
-            const ev = receipt.events?.guessVerified?.returnValues;
-            if (ev && ev._userAddress && ev._userAddress.toLowerCase() === account.toLowerCase()) {
-              const totalRewards = npInfura.utils.fromWei(ev._rewardsTotal || '0', 'ether');
+            const ev = receipt.events?.guessVerified?.returnValues as Record<string, string | number> | undefined;
+            if (ev && ev._userAddress && String(ev._userAddress).toLowerCase() === account.toLowerCase()) {
+              const totalRewards = npInfura.utils.fromWei(String(ev._rewardsTotal || '0'), 'ether');
               if ((ev._targetStatus === 'verified') || Number(ev._targetStatus) === 2) {
                 const isNormal = !guess.paidGuess && !guess.complex;
                 const expected = isNormal ? (selected.filter(Boolean).length * 500) : null;
@@ -77,7 +78,7 @@ export default function OnChainPage() {
                 Swal.fire('Verified!', msg, Number(ev._rewardsTotal) > 0 || isNormal ? 'success' : 'info');
                 const key = `rtdb:${account}`;
                 const prev = localStorage.getItem(key);
-                let table: any = {}; try { table = prev ? JSON.parse(prev) : {}; } catch { table = {}; }
+                let table: LocalStorageRTDB = {}; try { table = prev ? JSON.parse(prev) : {}; } catch { table = {}; }
                 const rowName = `row${guess.guessId}`;
                 table[rowName] = { ...(table[rowName] || {}), targetVerified: 2 };
                 localStorage.setItem(key, JSON.stringify(table));
@@ -92,10 +93,11 @@ export default function OnChainPage() {
       );
 
       setTimeout(() => { window.location.href = '/home'; }, 500);
-    } catch (e: any) {
-      if (e?.code === 4001) Swal.fire('Rejected', 'User rejected the transaction', 'error');
+    } catch (e) {
+      const error = e as { code?: number; message?: string };
+      if (error?.code === 4001) Swal.fire('Rejected', 'User rejected the transaction', 'error');
       else if (isGasFeeError(e)) Swal.fire('Gas fee too low', 'Please increase gas fee and try again.', 'warning');
-      else Swal.fire('Error', e?.message || 'Verification failed', 'error');
+      else Swal.fire('Error', error?.message || 'Verification failed', 'error');
     }
   }
 

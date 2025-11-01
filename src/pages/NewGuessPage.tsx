@@ -5,9 +5,9 @@ import { genHashData, getUnrevealedHash, isValidChar, removePrefix, randomBytes3
 import Web3 from 'web3';
 import { getTokenContract, getTokenContractReadonly } from '../services/eth';
 import { isGasFeeError, sendWithFees } from '../services/tx';
-import type { GuessEntry } from '../types';
+import type { GuessEntry, LocalStorageRTDB, WalletProvider } from '../types';
 
-function FieldLabel({ children }: { children: any }) {
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-slate-600 text-sm mb-1">{children}</div>;
 }
 
@@ -143,8 +143,8 @@ export default function NewGuessPage() {
     if (!account) { Swal.fire('Not logged in', 'No wallet account found', 'error'); return; }
 
   // Determine paid amount like HTML/JS: 25 tokens -> 25e18
-    const provider: any = (window as any).selectedWallet || (window as any).ethereum;
-    const web3 = new Web3(provider);
+    const provider = (window as Window & { selectedWallet?: WalletProvider; ethereum?: WalletProvider }).selectedWallet || (window as Window & { ethereum?: WalletProvider }).ethereum;
+    const web3 = new Web3(provider as never);
     const amountWei = paidGuess === 'true' ? web3.utils.toWei('25', 'ether') : '0';
 
     // If paid guess, ensure user has at least 25 GUESS before proceeding
@@ -173,9 +173,10 @@ export default function NewGuessPage() {
             { onHash: () => { void Swal.fire('Approving', 'Approving 25 tokens for Logic contract…', 'info'); } },
           );
         }
-      } catch (err: any) {
+      } catch (err) {
+        const error = err as { code?: number; message?: string };
         if (isGasFeeError(err)) await Swal.fire('Gas fee too low', 'Please increase gas fee and try again.', 'warning');
-        else await Swal.fire('Approval error', err?.message || 'Failed to approve tokens', 'error');
+        else await Swal.fire('Approval error', error?.message || 'Failed to approve tokens', 'error');
         return;
       }
     }
@@ -240,19 +241,20 @@ export default function NewGuessPage() {
             );
           }
         }
-      } catch (_e) {
+      } catch {
         // ignore fallback errors; user can still proceed
       }
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { code?: number; message?: string };
       if (isGasFeeError(err)) Swal.fire('Gas fee too low', 'Please increase gas fee and try again.', 'warning');
-      else Swal.fire('Transaction error', err?.message || 'Failed to send transaction', 'error');
+      else Swal.fire('Transaction error', error?.message || 'Failed to send transaction', 'error');
       return;
     }
 
     // Persist like HTML/JS firebase update (local fallback store)
     const key = `rtdb:${account}`;
     const prev = localStorage.getItem(key);
-    let table: any = {};
+    let table: LocalStorageRTDB = {};
     try { table = prev ? JSON.parse(prev) : {}; } catch { table = {}; }
     const rowName = `row${data.Sno}`;
     table[rowName] = {
@@ -305,14 +307,14 @@ export default function NewGuessPage() {
             </div>
             <div>
               <FieldLabel>Paid Guess</FieldLabel>
-              <select className="w-full border rounded p-2" value={paidGuess} onChange={(e) => setPaidGuess(e.target.value as any)} disabled={isReadOnly}>
+              <select className="w-full border rounded p-2" value={paidGuess} onChange={(e) => setPaidGuess(e.target.value as 'true' | 'false')} disabled={isReadOnly}>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>
             </div>
             <div>
               <FieldLabel>Overwrite</FieldLabel>
-              <select className="w-full border rounded p-2" value={overwrite} onChange={(e) => setOverwrite(e.target.value as any)}>
+              <select className="w-full border rounded p-2" value={overwrite} onChange={(e) => setOverwrite(e.target.value as 'true' | 'false')}>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>
@@ -320,7 +322,7 @@ export default function NewGuessPage() {
             </div>
             <div>
               <FieldLabel>Complex</FieldLabel>
-              <select className="w-full border rounded p-2" value={complex} onChange={(e) => setComplex(e.target.value as any)} disabled={isReadOnly}>
+              <select className="w-full border rounded p-2" value={complex} onChange={(e) => setComplex(e.target.value as 'true' | 'false')} disabled={isReadOnly}>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>

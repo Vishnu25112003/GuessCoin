@@ -1,13 +1,18 @@
 import Web3 from 'web3';
+import type { TransactionReceipt } from '../types';
 
 export type TxSendOpts = {
   from: string;
   value?: string;
 };
 
-export function isGasFeeError(e: any): boolean {
-  const msg = (e?.message || '').toLowerCase();
-  const code = e?.code;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ContractMethod = any;
+
+export function isGasFeeError(e: unknown): boolean {
+  const error = e as { message?: string; code?: number };
+  const msg = (error?.message || '').toLowerCase();
+  const code = error?.code;
   return (
     code === -32000 ||
     msg.includes('intrinsic gas too low') ||
@@ -25,9 +30,9 @@ export function isGasFeeError(e: any): boolean {
 export async function getFeeParams(web3: Web3): Promise<Record<string, string>> {
   try {
     const latest = await web3.eth.getBlock('latest');
-    const hasBase = (latest as any)?.baseFeePerGas;
+    const hasBase = (latest as { baseFeePerGas?: bigint | string })?.baseFeePerGas;
     if (hasBase) {
-      const base = BigInt(String((latest as any).baseFeePerGas));
+      const base = BigInt(String(hasBase));
       // Reasonable defaults for Polygon; MM will still allow user to edit
       const priority = 30n * 10n ** 9n; // 30 gwei
       const maxFee = base * 2n + priority;
@@ -47,7 +52,7 @@ export async function getFeeParams(web3: Web3): Promise<Record<string, string>> 
   }
 }
 
-export async function estimateGasWithBuffer(method: any, params: TxSendOpts): Promise<string | undefined> {
+export async function estimateGasWithBuffer(method: ContractMethod, params: TxSendOpts): Promise<string | undefined> {
   try {
     const est = await method.estimateGas(params);
     const withBuf = (BigInt(String(est)) * 12n) / 10n; // +20%
@@ -59,21 +64,21 @@ export async function estimateGasWithBuffer(method: any, params: TxSendOpts): Pr
 
 export async function sendWithFees(
   web3: Web3,
-  method: any,
+  method: ContractMethod,
   params: TxSendOpts,
   handlers: {
     onHash?: (h: string) => void;
-    onReceipt?: (r: any) => void;
+    onReceipt?: (r: TransactionReceipt) => void;
   } = {},
 ): Promise<void> {
   const fee = await getFeeParams(web3);
   const gas = await estimateGasWithBuffer(method, params);
-  const txParams = { ...params, ...(gas ? { gas } : {}), ...fee } as any;
+  const txParams = { ...params, ...(gas ? { gas } : {}), ...fee };
   await new Promise<void>((resolve, reject) => {
     method
       .send(txParams)
       .on('transactionHash', (h: string) => { handlers.onHash?.(h); })
-      .on('receipt', (r: any) => { handlers.onReceipt?.(r); resolve(); })
-      .on('error', (err: any) => reject(err));
+      .on('receipt', (r: TransactionReceipt) => { handlers.onReceipt?.(r); resolve(); })
+      .on('error', (err: Error) => reject(err));
   });
 }

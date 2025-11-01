@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Header from '../components/Header';
 import GuessTable from '../components/GuessTable';
-import type { GuessEntry } from '../types';
+import type { GuessEntry, ContractGuessData, LocalStorageRTDB, TransactionReceipt, WalletProvider } from '../types';
 import Swal from 'sweetalert2';
 import Web3 from 'web3';
 import { getLogicContract, getTokenContractReadonly } from '../services/eth';
@@ -19,13 +19,13 @@ export default function HomePage() {
     if (!logic || !account) return;
     const { INFURA_HTTP_URL } = await import('../services/config');
     const web3ro = new Web3(INFURA_HTTP_URL);
-    const LogicAbi = (await import('../abi/LogicCrt.json')).default as any;
+    const LogicAbi = (await import('../abi/LogicCrt.json')).default;
     const logicCrt = new web3ro.eth.Contract(LogicAbi, logic);
-    const entries: GuessEntry[] = [] as any;
+    const entries: GuessEntry[] = [];
     const rtdbRaw = localStorage.getItem(`rtdb:${account}`);
-    const rtdb: any = rtdbRaw ? JSON.parse(rtdbRaw) : {};
+    const rtdb: LocalStorageRTDB = rtdbRaw ? JSON.parse(rtdbRaw) : {};
     for (let i = 1; i <= 5; i++) {
-      const d: any = await logicCrt.methods.getGuessEntry(i).call({ from: account }, 'latest');
+      const d = await logicCrt.methods.getGuessEntry(i).call({ from: account }, 'latest') as unknown as ContractGuessData;
       const row = rtdb[`row${i}`] || {};
       entries.push({
         guessId: i,
@@ -78,8 +78,9 @@ export default function HomePage() {
       const bal = await token.methods.balanceOf(account).call({ from: account }, 'latest');
       const pretty = npInfura.utils.fromWei(String(bal), 'ether');
       await Swal.fire('Token balance', pretty, 'info');
-    } catch (e: any) {
-      Swal.fire('Error getting token balance', e?.message || 'Unknown error', 'error');
+    } catch (e) {
+      const error = e as Error;
+      Swal.fire('Error getting token balance', error?.message || 'Unknown error', 'error');
     } finally { setBalLoading(false); }
   }
 
@@ -89,9 +90,9 @@ export default function HomePage() {
       const account = localStorage.getItem('currentAccount');
       const logicAddr = localStorage.getItem('logicCrtAddress');
       if (!account || !logicAddr) { Swal.fire('Not logged in', 'Login first', 'error'); return; }
-      const provider: any = (window as any).selectedWallet || (window as any).ethereum;
+      const provider = (window as Window & { selectedWallet?: WalletProvider; ethereum?: WalletProvider }).selectedWallet || (window as Window & { ethereum?: WalletProvider }).ethereum;
       if (!provider) { Swal.fire('No wallet provider', 'Open MetaMask and retry', 'error'); return; }
-      const web3 = new Web3(provider);
+      const web3 = new Web3(provider as never);
       const logic = getLogicContract(web3, logicAddr);
       await sendWithFees(
         web3,
@@ -99,10 +100,10 @@ export default function HomePage() {
         { from: account },
         {
           onHash: () => { Swal.fire('Transaction sent', "Don't refresh. Waiting for confirmation...", 'info'); },
-          onReceipt: (receipt: any) => {
+          onReceipt: (receipt: TransactionReceipt) => {
             if (!receipt?.status) throw new Error('Sync failed');
-            const ev = receipt.events?.updatedPoolData?.returnValues;
-            if (ev && ev._userAddress && ev._userAddress.toLowerCase() === account.toLowerCase()) {
+            const ev = receipt.events?.updatedPoolData?.returnValues as Record<string, string | boolean> | undefined;
+            if (ev && ev._userAddress && String(ev._userAddress).toLowerCase() === account.toLowerCase()) {
               if (ev.updatedStatus || ev.updateStatus) {
                 Swal.fire('Success', 'Pool Data Synchronization Success! Returned Status True', 'success');
               } else {
@@ -115,10 +116,11 @@ export default function HomePage() {
         },
       );
       await load();
-    } catch (e: any) {
-      if (e?.code === 4001) Swal.fire('Rejected', 'User rejected the transaction', 'error');
+    } catch (e) {
+      const error = e as { code?: number; message?: string };
+      if (error?.code === 4001) Swal.fire('Rejected', 'User rejected the transaction', 'error');
       else if (isGasFeeError(e)) Swal.fire('Gas fee too low', 'Please increase gas fee and try again.', 'warning');
-      else Swal.fire('Error', e?.message || 'Error syncing pool data', 'error');
+      else Swal.fire('Error', error?.message || 'Error syncing pool data', 'error');
     } finally { setSyncing(false); }
   }
 
@@ -177,8 +179,9 @@ export default function HomePage() {
               } else {
                 await Swal.fire("Couldn't be mined", 'Block not available yet. Try again shortly.', 'warning');
               }
-            } catch (e: any) {
-              await Swal.fire('Error', e?.message || 'Unable to check validity', 'error');
+            } catch (e) {
+              const error = e as Error;
+              await Swal.fire('Error', error?.message || 'Unable to check validity', 'error');
             }
           }}
         />

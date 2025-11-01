@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { logos } from '../services/logos';
+import type { EIP6963ProviderDetail, WalletProvider } from '../types';
 
 export default function WalletPage() {
-  const [providers, setProviders] = useState<any[]>([]);
-  const [selected, setSelected] = useState<any | null>(null);
+  const [providers, setProviders] = useState<EIP6963ProviderDetail[]>([]);
+  const [selected, setSelected] = useState<EIP6963ProviderDetail | null>(null);
   const [status, setStatus] = useState('Please select a wallet to connect.');
   const [connectedAccount, setConnectedAccount] = useState<string | null>(null);
-  const queue = useRef<any[]>([]);
+  const queue = useRef<EIP6963ProviderDetail[]>([]);
   const domLoaded = useRef(false);
 
-  function handleNewProvider(detail: any) {
+  function handleNewProvider(detail: EIP6963ProviderDetail) {
     setProviders((prev) => {
       if (prev.some((p) => p.info.uuid === detail.info.uuid)) return prev;
       return [...prev, detail];
@@ -17,13 +18,17 @@ export default function WalletPage() {
   }
 
   useEffect(() => {
-    function onAnnounce(e: any) {
-      if (domLoaded.current) handleNewProvider(e.detail);
-      else queue.current.push(e.detail);
+    function onAnnounce(e: Event) {
+      const detail = (e as CustomEvent<EIP6963ProviderDetail>).detail;
+      if (domLoaded.current) handleNewProvider(detail);
+      else queue.current.push(detail);
     }
     window.addEventListener('eip6963:announceProvider', onAnnounce);
     domLoaded.current = true;
-    while (queue.current.length) handleNewProvider(queue.current.shift());
+    while (queue.current.length) {
+      const detail = queue.current.shift();
+      if (detail) handleNewProvider(detail);
+    }
     window.dispatchEvent(new Event('eip6963:requestProvider'));
     return () => window.removeEventListener('eip6963:announceProvider', onAnnounce);
   }, []);
@@ -31,33 +36,33 @@ export default function WalletPage() {
   async function connect() {
     if (!selected) return;
     try {
-      const accounts = await selected.provider.request({ method: 'eth_requestAccounts' });
-      (window as any).selectedWallet = selected.provider;
+      const accounts = await selected.provider.request({ method: 'eth_requestAccounts' }) as string[];
+      (window as Window & { selectedWallet?: WalletProvider }).selectedWallet = selected.provider;
       localStorage.setItem('selectedWalletRdns', selected.info.rdns);
       localStorage.setItem('currentAccount', accounts[0]);
       setConnectedAccount(accounts[0]);
       setStatus(`Connected: ${accounts[0]}`);
-    } catch (e) {
+    } catch {
       setStatus('Connection failed.');
     }
   }
 
   async function disconnect() {
     try {
-      const prov: any = selected?.provider || (window as any).selectedWallet || (window as any).ethereum;
+      const prov = selected?.provider || (window as Window & { selectedWallet?: WalletProvider; ethereum?: WalletProvider }).selectedWallet || (window as Window & { ethereum?: WalletProvider }).ethereum;
       if (prov?.request) {
         try {
           await prov.request({ method: 'wallet_revokePermissions', params: [{ eth_accounts: {} }] });
-        } catch {}
+        } catch { /* empty */ }
       }
       if (typeof prov?.disconnect === 'function') {
-        try { await prov.disconnect(); } catch {}
+        try { await prov.disconnect(); } catch { /* empty */ }
       }
       if (typeof prov?.close === 'function') {
-        try { await prov.close(); } catch {}
+        try { await prov.close(); } catch { /* empty */ }
       }
     } finally {
-      try { delete (window as any).selectedWallet; } catch {}
+      try { delete (window as Window & { selectedWallet?: WalletProvider }).selectedWallet; } catch { /* empty */ }
       localStorage.removeItem('selectedWalletRdns');
       localStorage.removeItem('currentAccount');
       localStorage.removeItem('logicCrtAddress');
@@ -71,7 +76,7 @@ export default function WalletPage() {
   const ConnectedView = () => (
     <div className="bg-white border rounded-xl shadow-sm p-4">
       <div className="flex items-center gap-3">
-        <img src={logos[selected?.info?.name] || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpdkhaco7zP_okC9wum0TqCmJUi7vehbO6jg&s'} className="w-10 h-10 rounded" />
+        <img src={logos[selected?.info?.name || ''] || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpdkhaco7zP_okC9wum0TqCmJUi7vehbO6jg&s'} className="w-10 h-10 rounded" />
         <div className="flex-1">
           <div className="font-medium text-slate-800">{selected?.info?.name || 'Wallet'}</div>
           <div className="text-slate-600 text-sm break-all">{connectedAccount}</div>
