@@ -35,6 +35,7 @@ export default function NewGuessPage() {
   const [overwrite, setOverwrite] = useState<boolean>(true);
   const [complex, setComplex] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [canSubmit, setCanSubmit] = useState<boolean>(false);
   const modal = useCyberModal();
 
   const [actualHash, setActualHash] = useState<string>("0x");
@@ -79,6 +80,14 @@ export default function NewGuessPage() {
       );
     }
   }, [actualHash, secretKey]);
+
+  // Update canSubmit state based on actualHash and secretKey validity
+  useEffect(() => {
+    const a = removePrefix(actualHash || "");
+    const s = removePrefix(secretKey || "");
+    setCanSubmit(isValidChar(a) && isValidChar(s));
+  }, [actualHash, secretKey]);
+
 
   function generateActual() {
     if (!actualHash || !actualHash.trim()) {
@@ -157,8 +166,8 @@ export default function NewGuessPage() {
     setPaidGuess(false);
     setOverwrite(true);
     setComplex(false);
-    setActualHash("");
-    setSecretKey("");
+    setActualHash("0x");
+    setSecretKey("0x");
     setDummyHash(
       "0x0000000000000000000000000000000000000000000000000000000000000000",
     );
@@ -466,7 +475,7 @@ export default function NewGuessPage() {
             <div className="flex justify-end gap-3">
               <CyberButton variant="secondary" type="button" onClick={clearForm}>Clear</CyberButton>
               {overwrite && (
-                <CyberButton variant="primary" type="submit" disabled={isSubmitting}>
+                <CyberButton variant="primary" type="submit" disabled={isSubmitting || !canSubmit}>
                   {isSubmitting ? "Submitting..." : "Submit"}
                 </CyberButton>
               )}
