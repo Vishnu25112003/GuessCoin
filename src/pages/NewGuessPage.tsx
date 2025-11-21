@@ -34,6 +34,7 @@ export default function NewGuessPage() {
   const [paidGuess, setPaidGuess] = useState<boolean>(false);
   const [overwrite, setOverwrite] = useState<boolean>(true);
   const [complex, setComplex] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const modal = useCyberModal();
 
   const [actualHash, setActualHash] = useState<string>("0x");
@@ -166,6 +167,8 @@ export default function NewGuessPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent multiple submissions
+    setIsSubmitting(true);
 
     // Ensure hashes exist even if user didn't type
     let _actual = actualHash?.trim();
@@ -178,10 +181,14 @@ export default function NewGuessPage() {
       setDummyHash(getUnrevealedHash(_actual, _secret));
     }
 
-    if (!validate()) return;
+    if (!validate()) {
+      setIsSubmitting(false);
+      return;
+    }
     const account = localStorage.getItem("currentAccount");
     if (!account) {
       modal.open({ title: "Not logged in", message: "No wallet account found", type: "error" });
+      setIsSubmitting(false);
       return;
     }
 
@@ -210,6 +217,7 @@ export default function NewGuessPage() {
           message: `You need at least 25 GUESS. Current balance: ${pretty}`,
           type: "error",
         });
+        setIsSubmitting(false);
         return;
       }
     }
@@ -241,6 +249,7 @@ export default function NewGuessPage() {
           modal.open({ title: "Gas fee too low", message: "Please increase gas fee and try again.", type: "warning" });
         else
           modal.open({ title: "Approval error", message: error?.message || "Failed to approve tokens", type: "error" });
+        setIsSubmitting(false);
         return;
       }
     }
@@ -328,6 +337,7 @@ export default function NewGuessPage() {
         modal.open({ title: "Gas fee too low", message: "Please increase gas fee and try again.", type: "warning" });
       else
         modal.open({ title: "Transaction error", message: error?.message || "Failed to send transaction", type: "error" });
+      setIsSubmitting(false);
       return;
     }
 
@@ -354,7 +364,11 @@ export default function NewGuessPage() {
     };
     localStorage.setItem(key, JSON.stringify(table));
 
-    modal.open({ title: "Success!", message: "Form submitted successfully!", type: "success" }, () => { window.location.href = "/home"; });
+    modal.open({ title: "Success!", message: "Form submitted successfully!", type: "success" }, () => { 
+      clearForm();
+      window.location.href = "/home"; 
+    });
+    setIsSubmitting(false);
   }
 
   const isReadOnly = !overwrite;
@@ -452,7 +466,9 @@ export default function NewGuessPage() {
             <div className="flex justify-end gap-3">
               <CyberButton variant="secondary" type="button" onClick={clearForm}>Clear</CyberButton>
               {overwrite && (
-                <CyberButton variant="primary" type="submit">Submit</CyberButton>
+                <CyberButton variant="primary" type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </CyberButton>
               )}
             </div>
           </form>

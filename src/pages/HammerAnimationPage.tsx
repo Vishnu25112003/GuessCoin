@@ -24,10 +24,10 @@ export default function HammerAnimationPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [splitHashes, setSplitHashes] = useState<string[]>([]);
   const [animationState, setAnimationState] = useState<AnimationState | null>(
-    null
+    null,
   );
   const [completedMatches, setCompletedMatches] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [isComplete, setIsComplete] = useState(false);
 
@@ -67,7 +67,7 @@ export default function HammerAnimationPage() {
       if (currentStep < splitHashes.length) {
         const currentToken = splitHashes[currentStep];
         const matchingTreasuryIndex = matches.findIndex(
-          (m) => m.token === currentToken
+          (m) => m.token === currentToken,
         );
 
         if (matchingTreasuryIndex >= 0) {
@@ -84,7 +84,7 @@ export default function HammerAnimationPage() {
 
           // Trigger break animation
           setAnimationState((prev) =>
-            prev ? { ...prev, isFlying: false, isBreaking: true } : null
+            prev ? { ...prev, isFlying: false, isBreaking: true } : null,
           );
 
           // Wait for break animation
@@ -92,7 +92,7 @@ export default function HammerAnimationPage() {
 
           // Mark as completed
           setCompletedMatches(
-            (prev) => new Set([...prev, matchingTreasuryIndex])
+            (prev) => new Set([...prev, matchingTreasuryIndex]),
           );
         } else {
           // No match - simple hammer strike animation
@@ -425,8 +425,8 @@ export default function HammerAnimationPage() {
 
           {isComplete && (
             <motion.div
-              initial={{ }}
-              animate={{ }}
+              initial={{}}
+              animate={{}}
               className="text-green-300 font-mono text-lg font-semibold"
             >
               ✓ Verification complete! Redirecting...
