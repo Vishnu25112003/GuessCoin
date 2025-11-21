@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "../components/Header";
 import { RealisticHammer } from "../components/RealisticHammer";
 import { TreasureBox } from "../components/TreasureBox";
-import { HexGrid, Scanlines } from "../components/cyberpunk";
+import { HexGrid, Scanlines, CyberButton, CyberModal } from "../components/cyberpunk";
+import { useCyberModal } from "../hooks/useCyberModal";
 import type { GuessEntry, MatchToken } from "../types";
 
 interface AnimationState {
@@ -16,6 +17,7 @@ interface AnimationState {
 
 export default function HammerAnimationPage() {
   const navigate = useNavigate();
+  const modal = useCyberModal();
 
   // States
   const [guess, setGuess] = useState<GuessEntry | null>(null);
@@ -120,6 +122,11 @@ export default function HammerAnimationPage() {
 
     handleAnimationStep();
   }, [currentStep, splitHashes, matches, navigate, isComplete]);
+
+  function skipAnimation() {
+    setIsComplete(true);
+    navigate("/on-chain");
+  }
 
   if (!guess || !blockHash) {
     return (
@@ -434,6 +441,16 @@ export default function HammerAnimationPage() {
           )}
         </motion.div>
       </main>
+
+      {/* Skip Animation Button */}
+      {guess && blockHash && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <CyberButton onClick={skipAnimation} variant="primary">
+            Skip Animation
+          </CyberButton>
+        </div>
+      )}
+      <CyberModal {...modal.props} />
     </div>
   );
 }
