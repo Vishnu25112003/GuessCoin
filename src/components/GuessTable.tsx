@@ -277,7 +277,6 @@ export default function GuessTable({
                   <div className="flex flex-col gap-3">
                     <CyberButton
                       variant="primary"
-                      size="lg"
                       onClick={() => onEdit(selectedGuess)}
                       icon={<Zap className="w-4 h-4" />}
                       className="w-full rounded-xl h-12"
@@ -287,8 +286,7 @@ export default function GuessTable({
 
                     {!isVerified && (
                       <CyberButton
-                        variant="success"
-                        size="lg"
+                        variant="primary"
                         onClick={() => onVerify(selectedGuess)}
                         icon={<Lock className="w-4 h-4" />}
                         className="w-full rounded-xl h-12"
@@ -298,8 +296,7 @@ export default function GuessTable({
                     )}
 
                     <CyberButton
-                      variant="info"
-                      size="lg"
+                      variant="secondary"
                       onClick={() => onValidity(selectedGuess)}
                       icon={<Target className="w-4 h-4" />}
                       className="w-full rounded-xl h-12"

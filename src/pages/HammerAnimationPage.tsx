@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "../components/Header";
@@ -225,9 +225,6 @@ export default function HammerAnimationPage() {
                   const isCurrentlyAnimating = index === currentStep - 1;
                   const hasAnimated = index < currentStep;
                   const matchFound = matches.some((m) => m.token === token);
-                  const isFlying =
-                    animationState?.hammerIndex === index &&
-                    animationState?.isFlying;
 
                   return (
                     <motion.div
@@ -450,7 +447,7 @@ export default function HammerAnimationPage() {
           </CyberButton>
         </div>
       )}
-      <CyberModal {...modal.props} />
+      <CyberModal {...modal.config} isOpen={modal.isOpen} onClose={modal.close} onConfirm={modal.onConfirm || undefined} />
     </div>
   );
 }

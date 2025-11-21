@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
@@ -51,7 +51,7 @@ export default function SeedDataPage() {
         });
       }
     }
-  }, []);
+  });
 
   // Format encoded data to proper hex string for Web3
   const formatEncodedData = (encoded: unknown): string => {
@@ -276,7 +276,7 @@ export default function SeedDataPage() {
       // Call comparison function
       const foundMatches = await compareHexValues(
         generatedHash,
-        guess.actualHash,
+        guess.actualHash || "",
         guess.tokenSize,
       );
 
@@ -524,8 +524,8 @@ export default function SeedDataPage() {
                       {generatedHash}
                     </p>
                     <motion.div
-                      initial={{ }}
-                      animate={{ }}
+                      initial={{}}
+                      animate={{}}
                       className="mt-3 flex items-center gap-2 text-green-300 text-xs font-semibold"
                     >
                       <CheckCircle2 className="w-4 h-4" />
@@ -632,14 +632,17 @@ export default function SeedDataPage() {
                       <p className="text-gray-400">
                         📍 Actual Hash:{" "}
                         <span className="text-cyan-300">
-                          {guess.actualHash.substring(0, 20)}...
+                          {guess.actualHash
+                            ? guess.actualHash.substring(0, 20)
+                            : ""}
+                          ...
                         </span>
                       </p>
                     </div>
                   </div>
 
                   <CyberButton
-                    variant="success"
+                    variant="primary"
                     onClick={handleFindMatches}
                     disabled={isLoading}
                     icon={<RefreshCw className="w-4 h-4" />}

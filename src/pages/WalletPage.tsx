@@ -288,7 +288,7 @@ const ConnectedView: React.FC<ConnectedViewProps> = ({
               </span>
             </div>
             <div className="text-center">
-              <CyberBadge variant="success" pulse>
+              <CyberBadge variant="success">
                 <CheckCircle className="w-3 h-3" />
                 Connected to {selected?.info?.name || "Wallet"}
               </CyberBadge>
@@ -300,8 +300,6 @@ const ConnectedView: React.FC<ConnectedViewProps> = ({
         <div className="flex flex-col sm:flex-row gap-4">
           <CyberButton
             variant="primary"
-            size="lg"
-            glow
             icon={<ArrowRight className="w-5 h-5" />}
             onClick={() => (window.location.href = "/session")}
             className="flex-1"
@@ -310,8 +308,6 @@ const ConnectedView: React.FC<ConnectedViewProps> = ({
           </CyberButton>
           <CyberButton
             variant="danger"
-            size="lg"
-            glow
             icon={<Power className="w-5 h-5" />}
             onClick={disconnect}
             className="flex-1 sm:flex-none"
@@ -391,8 +387,6 @@ const ConnectView: React.FC<ConnectViewProps> = ({
         {providers.length > 0 && (
           <CyberButton
             variant="primary"
-            size="lg"
-            glow
             onClick={connect}
             disabled={!selected || isConnecting}
             icon={<Wallet className="w-5 h-5" />}

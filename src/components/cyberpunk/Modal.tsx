@@ -214,7 +214,7 @@ interface CyberModalProps {
   onClose: () => void;
   title?: string;
   message?: string;
-  type?: "info" | "success" | "warning" | "error";
+  type?: "info" | "success" | "warning" | "error" | "confirm";
   confirmText?: string;
   cancelText?: string;
   onConfirm?: () => void;
@@ -237,22 +237,10 @@ export const CyberModal: React.FC<CyberModalProps> = ({
       case "error":
         return <AlertCircle className="w-6 h-6 text-red-400" />;
       case "warning":
+      case "confirm":
         return <AlertTriangle className="w-6 h-6 text-yellow-400" />;
       default:
         return <Info className="w-6 h-6 text-cyan-400" />;
-    }
-  };
-
-  const getHeaderColor = () => {
-    switch (type) {
-      case "success":
-        return "text-green-300";
-      case "error":
-        return "text-red-300";
-      case "warning":
-        return "text-yellow-300";
-      default:
-        return "text-cyan-300";
     }
   };
 
@@ -263,6 +251,7 @@ export const CyberModal: React.FC<CyberModalProps> = ({
       case "error":
         return "text-error-bright";
       case "warning":
+      case "confirm":
         return "text-warning-bright";
       default:
         return "text-primary-bright";
@@ -276,6 +265,7 @@ export const CyberModal: React.FC<CyberModalProps> = ({
       case "error":
         return "border-red-500/50";
       case "warning":
+      case "confirm":
         return "border-yellow-500/50";
       default:
         return "border-cyan-500/50";

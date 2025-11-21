@@ -49,8 +49,7 @@ export const CyberpunkHeader: React.FC<CyberpunkHeaderProps> = ({
 
             {onCheckBalance && (
               <CyberButton
-                variant="success"
-                size="sm"
+                variant="primary"
                 onClick={onCheckBalance}
                 icon={<span>💰</span>}
               >
@@ -61,7 +60,6 @@ export const CyberpunkHeader: React.FC<CyberpunkHeaderProps> = ({
             {onSyncData && (
               <CyberButton
                 variant="primary"
-                size="sm"
                 onClick={onSyncData}
                 icon={<span>🔄</span>}
               >
@@ -72,7 +70,6 @@ export const CyberpunkHeader: React.FC<CyberpunkHeaderProps> = ({
             {onLogout && (
               <CyberButton
                 variant="danger"
-                size="sm"
                 onClick={onLogout}
                 icon={<LogOut className="w-4 h-4" />}
               >

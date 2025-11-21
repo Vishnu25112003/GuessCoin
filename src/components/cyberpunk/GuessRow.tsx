@@ -112,7 +112,6 @@ export const GuessRow: React.FC<GuessRowProps> = ({
           <div className="flex gap-2 flex-wrap">
             <CyberButton
               variant="primary"
-              size="sm"
               onClick={onEdit}
               className="flex-1 min-w-[80px]"
             >
@@ -121,8 +120,7 @@ export const GuessRow: React.FC<GuessRowProps> = ({
 
             {!isVerified && (
               <CyberButton
-                variant="success"
-                size="sm"
+                variant="primary"
                 onClick={onVerify}
                 className="flex-1 min-w-[80px]"
               >
@@ -131,8 +129,7 @@ export const GuessRow: React.FC<GuessRowProps> = ({
             )}
 
             <CyberButton
-              variant="info"
-              size="sm"
+              variant="secondary"
               onClick={onValidity}
               className="flex-1 min-w-[80px]"
             >

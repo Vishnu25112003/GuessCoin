@@ -174,7 +174,7 @@ export default function SessionPage() {
                       </span>
                     </div>
                     <div className="text-center">
-                      <CyberBadge variant="success" pulse>
+                      <CyberBadge variant="success">
                         Connected to MetaMask
                       </CyberBadge>
                     </div>
@@ -203,8 +203,6 @@ export default function SessionPage() {
               >
                 <CyberButton
                   variant="primary"
-                  size="lg"
-                  glow
                   icon={<LogIn className="w-5 h-5" />}
                   onClick={onLogin}
                   disabled={isLoading}
@@ -213,9 +211,7 @@ export default function SessionPage() {
                   {isLoading ? "PROCESSING..." : "LOGIN"}
                 </CyberButton>
                 <CyberButton
-                  variant="success"
-                  size="lg"
-                  glow
+                  variant="primary"
                   icon={<UserPlus className="w-5 h-5" />}
                   onClick={onRegister}
                   disabled={isLoading}

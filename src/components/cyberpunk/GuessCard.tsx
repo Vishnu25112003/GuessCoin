@@ -117,7 +117,6 @@ export const GuessCard: React.FC<GuessCardProps> = ({
         <div className="flex gap-2 flex-wrap">
           <CyberButton
             variant="primary"
-            size="sm"
             onClick={onEdit}
             icon={<Zap className="w-3 h-3" />}
             className="flex-1 min-w-[100px]"
@@ -127,8 +126,7 @@ export const GuessCard: React.FC<GuessCardProps> = ({
 
           {!isVerified && (
             <CyberButton
-              variant="success"
-              size="sm"
+              variant="primary"
               onClick={onVerify}
               icon={<Lock className="w-3 h-3" />}
               className="flex-1 min-w-[100px]"
@@ -138,8 +136,7 @@ export const GuessCard: React.FC<GuessCardProps> = ({
           )}
 
           <CyberButton
-            variant="info"
-            size="sm"
+            variant="secondary"
             onClick={onValidity}
             icon={<Target className="w-3 h-3" />}
             className="flex-1 min-w-[100px]"

@@ -100,7 +100,7 @@
 // }
 
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
@@ -386,10 +386,10 @@ export default function MatchesPage() {
                               </div>
                             </div>
                             <div className="flex gap-2 text-xs">
-                              <CyberBadge variant="info">
+                              <CyberBadge>
                                 {match.hex1.leftSkip ? "Left Skip" : "No Left"}
                               </CyberBadge>
-                              <CyberBadge variant="info">
+                              <CyberBadge>
                                 {match.hex1.rightSkip
                                   ? "Right Skip"
                                   : "No Right"}
@@ -417,10 +417,10 @@ export default function MatchesPage() {
                               </div>
                             </div>
                             <div className="flex gap-2 text-xs">
-                              <CyberBadge variant="info">
+                              <CyberBadge>
                                 {match.hex2.leftSkip ? "Left Skip" : "No Left"}
                               </CyberBadge>
-                              <CyberBadge variant="info">
+                              <CyberBadge>
                                 {match.hex2.rightSkip
                                   ? "Right Skip"
                                   : "No Right"}
@@ -463,7 +463,7 @@ export default function MatchesPage() {
               </div>
               <div className="flex gap-2">
                 {Array.from(selectedIndices).map((idx) => (
-                  <CyberBadge key={idx} variant="success">
+                  <CyberBadge key={idx}>
                     Match {idx + 1}
                   </CyberBadge>
                 ))}

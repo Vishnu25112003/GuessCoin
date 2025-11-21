@@ -343,7 +343,7 @@ export default function HomePage() {
             />
             <div className="flex gap-3 flex-wrap justify-center sm:justify-end">
               <CyberButton
-                variant="success"
+                variant="primary"
                 onClick={onSyncPool}
                 disabled={syncing}
                 icon={
